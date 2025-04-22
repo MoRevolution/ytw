@@ -10,7 +10,7 @@ import { UserProfile } from "@/components/user-profile"
 import { useAuth } from "@/contexts/auth-context"
 
 export default function HomePage() {
-  const { isLoggedIn, login } = useAuth()
+  const { isLoggedIn, login, viewSampleUser } = useAuth()
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -61,7 +61,7 @@ export default function HomePage() {
                 </Button>
               </Link>
               <Link href="#sample">
-                <Button size="lg" variant="outline">
+                <Button size="lg" variant="outline" onClick={() => viewSampleUser()}>
                   View Sample
                 </Button>
               </Link>
