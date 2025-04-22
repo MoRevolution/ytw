@@ -1,26 +1,112 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 7%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 7%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 7%;
+    --primary: 0 91% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 7%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 7%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89%;
+    --input: 0 0% 89%;
+    --ring: 0 91% 42%;
+    --radius: 0.5rem;
+
+    /* Chart colors */
+    --chart-1: 0 91% 42%;
+    --chart-2: 262 83% 58%;
+    --chart-3: 204 94% 52%;
+    --chart-4: 142 71% 45%;
+    --chart-5: 48 96% 53%;
+  }
+
+  .dark {
+    /* YouTube-inspired dark theme */
+    --background: 0 0% 6%; /* #0f0f0f */
+    --foreground: 0 0% 100%;
+    --card: 0 0% 13%; /* #212121 */
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 13%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 91% 42%; /* YouTube red */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 16%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 31%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 91% 42%;
+
+    /* Chart colors - adjusted for YouTube dark theme */
+    --chart-1: 0 91% 50%;
+    --chart-2: 262 83% 65%;
+    --chart-3: 204 94% 60%;
+    --chart-4: 142 71% 55%;
+    --chart-5: 48 96% 60%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+}
+
+/* YouTube-inspired styles */
+.dark .bg-muted\/50 {
+  background-color: hsl(0 0% 10%); /* Slightly lighter than main background */
+}
+
+.dark .border {
+  border-color: hsl(0 0% 20%); /* YouTube-style borders */
+}
+
+/* YouTube-style scrollbar for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: hsl(0 0% 10%);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(0 0% 30%);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(0 0% 40%);
+}
+
+/* Smooth transitions for theme changes */
+.card,
+.button,
+.dropdown-menu,
+.progress,
+.tabs {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
