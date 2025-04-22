@@ -3,15 +3,54 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
+import { openDB } from "idb"
 
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { toast } from "@/components/use-toast"
 
 // Firebase imports would go here in a real implementation
-// import { GoogleAuthProvider, signInWithPopup } from "firebase/auth"
-// import { doc, setDoc, getFirestore } from "firebase/firestore"
-// import { auth } from "@/lib/firebase"
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth"
+import { doc, setDoc } from "firebase/firestore"
+import { auth, db } from "@/lib/firebase"
+
+// Function to check if data already exists in IndexedDB
+async function isDataInIndexedDB(fileId: string): Promise<boolean> {
+  const db = await openDB("youtube-wrapped", 1, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains("files")) {
+        db.createObjectStore("files", { keyPath: "fileName" })
+      }
+    },
+  })
+
+  const tx = db.transaction("files", "readonly")
+  const store = tx.objectStore("files")
+  const existingFile = await store.get(fileId)
+
+  return !!existingFile
+}
+
+// Function to store data in IndexedDB
+async function storeDataInIndexedDB(data: { [key: string]: string }) {
+  const db = await openDB("youtube-wrapped", 1, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains("files")) {
+        db.createObjectStore("files", { keyPath: "fileName" })
+      }
+    },
+  })
+
+  const tx = db.transaction("files", "readwrite")
+  const store = tx.objectStore("files")
+
+  for (const [fileName, content] of Object.entries(data)) {
+    await store.put({ fileName, content })
+  }
+
+  await tx.done
+  console.log("Data stored in IndexedDB successfully")
+}
 
 interface GoogleLoginProps {
   variant: "login" | "signup"
@@ -26,57 +65,110 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
     setIsLoading(true)
 
     try {
-      // This is where you would implement the actual Google authentication
-      // For now, we'll just simulate a successful login
+      const provider = new GoogleAuthProvider()
+      provider.addScope("https://www.googleapis.com/auth/drive")
 
-      // In a real implementation, you would:
-      // 1. Initialize a GoogleAuthProvider with the required scopes
-      // 2. Use signInWithPopup to authenticate the user
-      // 3. Store the user data and tokens in Firestore
-      // 4. Update the auth context
+      const result = await signInWithPopup(auth, provider)
+      const credential = GoogleAuthProvider.credentialFromResult(result)
+      const token = credential?.accessToken
+      const user = result.user
 
-      // Example of how the real implementation might look:
-      /*
-      const provider = new GoogleAuthProvider();
-      provider.addScope('https://www.googleapis.com/auth/drive.file');
-      provider.addScope('https://www.googleapis.com/auth/youtube.readonly');
-      
-      const result = await signInWithPopup(auth, provider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      const token = credential?.accessToken;
-      const user = result.user;
-      
-      // Store user data in Firestore
-      const db = getFirestore();
-      await setDoc(doc(db, "users", user.uid), {
+      // Create/update user via API
+      const createUserResponse = await fetch('/api/users/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          accessToken: token,
+        }),
+      });
+
+      const { isNewUser, hasWatchHistory } = await createUserResponse.json();
+
+      // Check if we need to fetch new data
+      const fileId = "youtube-watch-history"
+      const isDataPresent = await isDataInIndexedDB(fileId)
+
+      if (!isDataPresent && !hasWatchHistory) {
+        try {
+          const response = await fetch('/api/fetch-watch-history', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ accessToken: token }),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to fetch watch history: ${response.status}`);
+          }
+
+          const { data: watchHistoryData } = await response.json();
+          console.log("✅ Received watch history data");
+
+          await storeDataInIndexedDB({ 
+            [fileId]: JSON.stringify(watchHistoryData)
+          });
+          console.log("✅ Stored data in IndexedDB");
+
+          // Update watch history status
+          await fetch('/api/users/update-history-status', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              uid: user.uid,
+              hasWatchHistory: true,
+            }),
+          });
+
+          toast({
+            title: "Data stored",
+            description: "Your YouTube watch history has been successfully imported.",
+          });
+        } catch (error: any) {
+          console.error("❌ Error:", error.message);
+          toast({
+            title: "Warning",
+            description: "Could not fetch watch history. Please try again later.",
+          });
+        }
+      } else {
+        toast({
+          title: "Data already exists",
+          description: "Using existing watch history data.",
+        })
+      }
+
+      // Complete login process with actual user data
+      login({
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        accessToken: token,
-        createdAt: new Date(),
-      });
-      */
-
-      // Simulate a delay for the login process
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      // Call the login function from the auth context
-      login()
-
+        isSampleUser: false
+      })
+      
       toast({
-        title: "Login successful",
-        description: "You have been successfully logged in.",
+        title: isNewUser ? "Welcome!" : "Welcome back!",
+        description: isNewUser 
+          ? "Your account has been created successfully." 
+          : "You have been successfully logged in.",
       })
 
-      // Redirect to dashboard
       router.push("/dashboard")
     } catch (error) {
-      console.error("Error during Google login:", error)
+      console.error("Error during Google login process:", error)
       toast({
-        title: "Login failed",
-        description: "There was an error logging in with Google. Please try again.",
-        variant: "destructive",
+        title: "Error",
+        description: "An error occurred during the login process. Please try again.",
       })
     } finally {
       setIsLoading(false)

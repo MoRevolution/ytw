@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Film, ArrowLeft } from "lucide-react"
@@ -11,14 +11,32 @@ import { GoogleLogin } from "@/components/google-login"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
+  const [hasUsers, setHasUsers] = useState(false)
   const router = useRouter()
   const { isLoggedIn } = useAuth()
 
+  // Check users collection on component mount
+  useEffect(() => {
+    const checkUsers = async () => {
+      try {
+        const response = await fetch('/api/check-users');
+        const data = await response.json();
+        setHasUsers(data.exists);
+        console.log('Users collection exists:', data.exists);
+      } catch (error) {
+        console.error('Error checking users collection:', error);
+      }
+    };
+
+    checkUsers();
+  }, []);
+
   // Redirect if already logged in
-  if (isLoggedIn) {
-    router.push("/dashboard")
-    return null
-  }
+  useEffect(() => {
+    if (isLoggedIn) {
+      router.push("/dashboard");
+    }
+  }, [isLoggedIn, router]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
@@ -38,7 +56,10 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome</CardTitle>
-          <CardDescription>Sign in to access your YouTube Wrapped insights</CardDescription>
+          <CardDescription>
+            {!hasUsers && "Welcome to YouTube Wrapped! You'll be one of our first users."}
+            {hasUsers && "Sign in to access your YouTube Wrapped insights"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
@@ -97,12 +118,8 @@ export default function LoginPage() {
         <CardFooter className="flex flex-col space-y-2">
           <p className="text-xs text-center text-muted-foreground">
             By signing in, you agree to our{" "}
-            <Link href="/terms" className="underline hover:text-foreground">
-              Terms of Service
-            </Link>{" "}
-            and{" "}
-            <Link href="/privacy" className="underline hover:text-foreground">
-              Privacy Policy
+            <Link href="/terms-and-privacy" className="underline hover:text-foreground">
+              Terms of Service and Privacy Policy
             </Link>
           </p>
         </CardFooter>
