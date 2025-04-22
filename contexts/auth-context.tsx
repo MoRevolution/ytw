@@ -3,6 +3,8 @@
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { onAuthStateChanged } from "firebase/auth"
+import { auth } from "@/lib/firebase"
 
 // Firebase imports would go here in a real implementation
 // import { onAuthStateChanged, signOut } from "firebase/auth"
@@ -13,13 +15,23 @@ type User = {
   email: string | null
   displayName: string | null
   photoURL: string | null
+  isSampleUser?: boolean
 }
 
 type AuthContextType = {
   isLoggedIn: boolean
   user: User | null
-  login: () => void
+  login: (userData?: User) => void
   logout: () => void
+  viewSampleUser: () => void
+}
+
+const sampleUser: User = {
+  uid: "sample-user",
+  email: "alex.johnson@example.com",
+  displayName: "Alex Johnson",
+  photoURL: "/placeholder.svg?height=40&width=40",
+  isSampleUser: true
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -30,64 +42,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    // Check if user is logged in from localStorage for now
-    // In a real implementation, you would use Firebase's onAuthStateChanged
-    const loggedIn = localStorage.getItem("isLoggedIn") === "true"
-    setIsLoggedIn(loggedIn)
-
-    // Mock user data if logged in
-    if (loggedIn) {
-      setUser({
-        uid: "mock-uid",
-        email: "user@example.com",
-        displayName: "Alex Johnson",
-        photoURL: "/placeholder.svg?height=40&width=40",
-      })
-    }
-
-    // Real implementation would look like:
-    /*
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setIsLoggedIn(true);
+    // Listen for auth state changes
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser && !user?.isSampleUser) {
+        setIsLoggedIn(true)
         setUser({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-        });
-      } else {
-        setIsLoggedIn(false);
-        setUser(null);
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+          isSampleUser: false
+        })
+      } else if (!user?.isSampleUser) {
+        setIsLoggedIn(false)
+        setUser(null)
       }
-    });
-
-    return () => unsubscribe();
-    */
-  }, [])
-
-  const login = () => {
-    // In a real implementation, this would be handled by Firebase's signInWithPopup
-    localStorage.setItem("isLoggedIn", "true")
-    setIsLoggedIn(true)
-    setUser({
-      uid: "mock-uid",
-      email: "user@example.com",
-      displayName: "Alex Johnson",
-      photoURL: "/placeholder.svg?height=40&width=40",
     })
+
+    return () => unsubscribe()
+  }, []) // Remove user from dependencies
+
+  const login = (userData?: User) => {
+    if (userData) {
+      setIsLoggedIn(true)
+      setUser(userData)
+    }
   }
 
   const logout = () => {
-    // In a real implementation, you would use Firebase's signOut
-    // signOut(auth);
-    localStorage.removeItem("isLoggedIn")
+    auth.signOut()
     setIsLoggedIn(false)
     setUser(null)
     router.push("/")
   }
 
-  return <AuthContext.Provider value={{ isLoggedIn, user, login, logout }}>{children}</AuthContext.Provider>
+  const viewSampleUser = () => {
+    setIsLoggedIn(true)
+    setUser(sampleUser)
+    router.push("/dashboard")
+  }
+
+  return (
+    <AuthContext.Provider value={{ isLoggedIn, user, login, logout, viewSampleUser }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {
