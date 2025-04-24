@@ -7,50 +7,13 @@ import { openDB } from "idb"
 
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
-import { toast } from "@/components/use-toast"
+import { toast } from "@/hooks/use-toast"
+import { isDataInIndexedDB, storeDataInIndexedDB, processAndStoreWatchHistoryByYear } from "@/lib/indexeddb"
+import { fetchAndProcessWatchHistory } from "@/lib/fetch-watch-history"
 
 // Firebase imports would go here in a real implementation
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth"
-import { doc, setDoc } from "firebase/firestore"
-import { auth, db } from "@/lib/firebase"
-
-// Function to check if data already exists in IndexedDB
-async function isDataInIndexedDB(fileId: string): Promise<boolean> {
-  const db = await openDB("youtube-wrapped", 1, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains("files")) {
-        db.createObjectStore("files", { keyPath: "fileName" })
-      }
-    },
-  })
-
-  const tx = db.transaction("files", "readonly")
-  const store = tx.objectStore("files")
-  const existingFile = await store.get(fileId)
-
-  return !!existingFile
-}
-
-// Function to store data in IndexedDB
-async function storeDataInIndexedDB(data: { [key: string]: string }) {
-  const db = await openDB("youtube-wrapped", 1, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains("files")) {
-        db.createObjectStore("files", { keyPath: "fileName" })
-      }
-    },
-  })
-
-  const tx = db.transaction("files", "readwrite")
-  const store = tx.objectStore("files")
-
-  for (const [fileName, content] of Object.entries(data)) {
-    await store.put({ fileName, content })
-  }
-
-  await tx.done
-  console.log("Data stored in IndexedDB successfully")
-}
+import { auth} from "@/lib/firebase"
 
 interface GoogleLoginProps {
   variant: "login" | "signup"
@@ -88,49 +51,21 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
         }),
       });
 
-      const { isNewUser, hasWatchHistory } = await createUserResponse.json();
+      const { isNewUser } = await createUserResponse.json();
 
-      // Check if we need to fetch new data
-      const fileId = "youtube-watch-history"
-      const isDataPresent = await isDataInIndexedDB(fileId)
-
-      if (!isDataPresent && !hasWatchHistory) {
+      // Check if data exists in IndexedDB
+      const hasData = await isDataInIndexedDB("youtube-watch-history");
+      
+      if (!hasData) {
+        console.log("📦 No watch history data found in IndexedDB, fetching...");
         try {
-          const response = await fetch('/api/fetch-watch-history', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ accessToken: token }),
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Failed to fetch watch history: ${response.status}`);
+          if (!token) {
+            throw new Error("No access token available");
           }
-
-          const { data: watchHistoryData } = await response.json();
-          console.log("✅ Received watch history data");
-
-          await storeDataInIndexedDB({ 
-            [fileId]: JSON.stringify(watchHistoryData)
-          });
-          console.log("✅ Stored data in IndexedDB");
-
-          // Update watch history status
-          await fetch('/api/users/update-history-status', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              uid: user.uid,
-              hasWatchHistory: true,
-            }),
-          });
-
+          await fetchAndProcessWatchHistory(token, user.uid);
+          
           toast({
-            title: "Data stored",
+            title: "Data imported",
             description: "Your YouTube watch history has been successfully imported.",
           });
         } catch (error: any) {
@@ -141,12 +76,9 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
           });
         }
       } else {
-        toast({
-          title: "Data already exists",
-          description: "Using existing watch history data.",
-        })
+        console.log("📦 Using existing watch history data from IndexedDB");
       }
-
+      
       // Complete login process with actual user data
       login({
         uid: user.uid,
