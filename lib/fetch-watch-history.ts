@@ -1,53 +1,73 @@
-import { openDB } from 'idb';
-import { processAndStoreWatchHistoryByYear } from "./indexeddb"
-
-async function checkForExistingData(): Promise<boolean> {
-  try {
-    const db = await openDB('youtube-wrapped', 1);
-    const tx = db.transaction('watchHistory', 'readonly');
-    const store = tx.objectStore('watchHistory');
-    const count = await store.count();
-    return count > 0;
-  } catch (error) {
-    console.error("Error checking for existing data:", error);
-    return false;
-  }
-}
+import { processAndStoreWatchHistoryByYear, isDataInIndexedDB } from "./indexeddb"
+import { WATCH_HISTORY_FILE } from './constants'
 
 async function fetchWatchHistory(accessToken: string) {
-  const response = await fetch('/api/fetch-watch-history', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ accessToken }),
-  });
+  try {
+    console.log("🔑 Using access token:", accessToken ? "Token present" : "No token");
+    
+    const response = await fetch('/api/fetch-watch-history', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ accessToken }),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch watch history: ${response.status}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ API Response error:", {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
+      throw new Error(`Failed to fetch watch history: ${response.status} - ${response.statusText}`);
+    }
+
+    const { data } = await response.json();
+    return data;
+  } catch (error: any) {
+    console.error("❌ Error in fetchWatchHistory:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    throw error;
   }
-
-  const { data } = await response.json();
-  return data;
 }
 
-export async function fetchAndProcessWatchHistory(accessToken: string, userId: string) {
+export async function fetchAndProcessWatchHistory(accessToken: string, userId: string, forceRefresh: boolean = false) {
   try {
-    // Check if we already have data in IndexedDB
-    const hasData = await checkForExistingData();
-    if (hasData) {
-      console.log("📦 Watch history data already exists in IndexedDB");
-      return;
+    // Only check for existing data if this is not a forced refresh
+    if (!forceRefresh) {
+      // Check for main watch history file
+      const hasMainData = await isDataInIndexedDB(WATCH_HISTORY_FILE);
+      
+      // Get current year and past two years
+      const currentYear = new Date().getFullYear();
+      const years = [currentYear, currentYear - 1, currentYear - 2];
+      
+      // Check for year files
+      const yearFilesExist = await Promise.all(
+        years.map(year => isDataInIndexedDB(`watch-history-${year}`))
+      );
+      
+      // Only skip if we have both the main file and the required year files
+      if (hasMainData && yearFilesExist.every(exists => exists)) {
+        console.log("📦 Watch history data and required year files already exist in IndexedDB");
+        return;
+      }
     }
 
     // Fetch watch history from YouTube API
+    console.log("🔄 Starting watch history fetch...");
     const watchHistory = await fetchWatchHistory(accessToken);
     
-    // Process and store the data
+    console.log("🔄 Processing and storing watch history data by year");
     await processAndStoreWatchHistoryByYear(watchHistory);
     
     // Update watch history status
-    await fetch('/api/users/update-history-status', {
+    console.log("🔄 Updating watch history status...");
+    const statusResponse = await fetch('/api/users/update-history-status', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -57,6 +77,16 @@ export async function fetchAndProcessWatchHistory(accessToken: string, userId: s
         hasWatchHistory: true,
       }),
     });
+
+    if (!statusResponse.ok) {
+      const errorText = await statusResponse.text();
+      console.error("❌ Failed to update watch history status:", {
+        status: statusResponse.status,
+        statusText: statusResponse.statusText,
+        body: errorText
+      });
+      throw new Error(`Failed to update watch history status: ${statusResponse.status}`);
+    }
 
     console.log("✅ Watch history data processed and stored successfully");
   } catch (error) {

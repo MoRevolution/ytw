@@ -6,6 +6,9 @@ export async function GET(request: Request) {
   try {
     console.log('🔔 Starting token fetch process');
     
+    // Initialize Firebase Admin first
+    const adminDb = getAdminDB();
+    
     // Get the authorization header
     const authHeader = request.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
@@ -23,7 +26,6 @@ export async function GET(request: Request) {
     console.log('📝 Fetching token for user:', uid);
 
     // Get the user's document from Firestore
-    const adminDb = getAdminDB();
     const userDoc = await adminDb.collection('users').doc(uid).get();
 
     if (!userDoc.exists) {

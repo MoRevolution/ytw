@@ -8,8 +8,9 @@ import { openDB } from "idb"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { toast } from "@/hooks/use-toast"
-import { isDataInIndexedDB, storeDataInIndexedDB, processAndStoreWatchHistoryByYear } from "@/lib/indexeddb"
+import { isDataInIndexedDB} from "@/lib/indexeddb"
 import { fetchAndProcessWatchHistory } from "@/lib/fetch-watch-history"
+import { WATCH_HISTORY_FILE } from "@/lib/constants"
 
 // Firebase imports would go here in a real implementation
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth"
@@ -54,7 +55,7 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
       const { isNewUser } = await createUserResponse.json();
 
       // Check if data exists in IndexedDB
-      const hasData = await isDataInIndexedDB("youtube-watch-history");
+      const hasData = await isDataInIndexedDB(WATCH_HISTORY_FILE);
       
       if (!hasData) {
         console.log("📦 No watch history data found in IndexedDB, fetching...");

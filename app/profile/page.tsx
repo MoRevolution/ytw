@@ -38,6 +38,9 @@ export default function ProfilePage() {
     try {
       // Get the user's ID token
       const idToken = await auth.currentUser?.getIdToken();
+      
+      console.log(idToken)
+
       if (!idToken) {
         throw new Error("No authenticated user found");
       }
@@ -63,7 +66,7 @@ export default function ProfilePage() {
       }
 
       // Use the helper function to handle the rest
-      await fetchAndProcessWatchHistory(accessToken, user?.uid || "");
+      await fetchAndProcessWatchHistory(accessToken, user?.uid || "", true);
 
       toast({
         title: "Data refreshed",

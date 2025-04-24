@@ -6,10 +6,6 @@ import { useRouter } from "next/navigation"
 import { onAuthStateChanged } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 
-// Firebase imports would go here in a real implementation
-// import { onAuthStateChanged, signOut } from "firebase/auth"
-// import { auth } from "@/lib/firebase"
-
 type User = {
   uid: string
   email: string | null
@@ -24,6 +20,7 @@ type AuthContextType = {
   login: (userData?: User) => void
   logout: () => void
   viewSampleUser: () => void
+  isSampleUser: boolean
 }
 
 const sampleUser: User = {
@@ -83,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, user, login, logout, viewSampleUser }}>
+    <AuthContext.Provider value={{ isLoggedIn, user, login, logout, viewSampleUser, isSampleUser: user?.isSampleUser || false }}>
       {children}
     </AuthContext.Provider>
   )
