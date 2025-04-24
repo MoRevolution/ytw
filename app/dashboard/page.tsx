@@ -1,10 +1,29 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { BarChart3, Clock, Film, Home, Share2, Star, Users } from "lucide-react"
+import { BarChart3, Clock, Film, Home, Share2, Star, Users, Play } from "lucide-react"
+import { Bar } from "react-chartjs-2"
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js'
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+)
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,18 +32,98 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ShareStats } from "@/components/share-stats"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { fetchDefaultComparison, DashboardStats } from "@/lib/fetch-dashboard-data"
 
-// Mock stats for sharing
-const userStats = {
-  watchTime: 247,
-  videosWatched: 1842,
-  topCategory: "Gaming",
-  topCreator: "MKBHD",
+// Mock stats for sample user
+const mockStats = {
+  primaryYear: {
+    watchTime: 247,
+    videosWatched: 1842,
+    uniqueCreators: 312,
+    topCategory: "Gaming",
+    topCreator: "MKBHD",
+    year: 2023,
+    isComplete: true,
+    topCreators: [
+      { name: "MKBHD", watchTime: 42.3, videoCount: 85 },
+      { name: "Linus Tech Tips", watchTime: 38.7, videoCount: 78 },
+      { name: "Veritasium", watchTime: 29.5, videoCount: 60 },
+      { name: "Fireship", watchTime: 24.8, videoCount: 50 },
+      { name: "The Verge", watchTime: 20.1, videoCount: 45 }
+    ],
+    monthlyVideoCounts: [120, 150, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360],
+    mostWatchedVideo: {
+      title: "The Ultimate Guide to Next.js 13 App Router",
+      channel: "Fireship",
+      count: 14
+    }
+  },
+  comparisonYear: {
+    watchTime: 210,
+    videosWatched: 1500,
+    uniqueCreators: 290,
+    topCategory: "Tech",
+    topCreator: "Linus Tech Tips",
+    year: 2022,
+    isComplete: true,
+    topCreators: [
+      { name: "Linus Tech Tips", watchTime: 45.2, videoCount: 90 },
+      { name: "MKBHD", watchTime: 35.8, videoCount: 70 },
+      { name: "The Verge", watchTime: 28.3, videoCount: 55 },
+      { name: "Veritasium", watchTime: 25.6, videoCount: 50 },
+      { name: "Fireship", watchTime: 22.4, videoCount: 45 }
+    ],
+    monthlyVideoCounts: [100, 130, 160, 180, 200, 220, 240, 260, 280, 300, 320, 340],
+    mostWatchedVideo: {
+      title: "The Ultimate Guide to Next.js 13 App Router",
+      channel: "Fireship",
+      count: 12
+    }
+  }
+}
+
+interface CreatorCardProps {
+  creator: {
+    name: string
+    watchTime: number
+    videoCount: number
+  }
+  rank: number
+}
+
+function CreatorCard({ creator, rank }: CreatorCardProps) {
+  const progressValue = (creator.watchTime / 50) * 100 // Assuming 50 hours is max for now
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="h-10 w-10 rounded-full bg-muted">
+        <Image
+          src="/placeholder.svg?height=40&width=40"
+          alt="Creator avatar"
+          width={40}
+          height={40}
+          className="rounded-full"
+        />
+      </div>
+      <div className="flex-1">
+        <div className="flex items-center justify-between">
+          <p className="font-medium">{creator.name}</p>
+          <div className="flex items-center gap-1">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">{creator.watchTime.toFixed(1)} hours</span>
+          </div>
+        </div>
+        <Progress value={progressValue} className="mt-2 h-2" />
+      </div>
+    </div>
+  )
 }
 
 export default function DashboardPage() {
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, isSampleUser } = useAuth()
   const router = useRouter()
+  const [stats, setStats] = useState<{ primaryYear: DashboardStats; comparisonYear?: DashboardStats } | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Redirect if not logged in
   useEffect(() => {
@@ -32,6 +131,29 @@ export default function DashboardPage() {
       router.push("/")
     }
   }, [isLoggedIn, router])
+
+  // Fetch real data if not sample user, otherwise use mock data
+  useEffect(() => {
+    if (isLoggedIn) {
+      if (isSampleUser) {
+        setStats(mockStats)
+        setIsLoading(false)
+      } else {
+        const fetchData = async () => {
+          try {
+            const data = await fetchDefaultComparison()
+            setStats(data)
+            console.log(data)
+          } catch (error) {
+            console.error("Error fetching dashboard stats:", error)
+          } finally {
+            setIsLoading(false)
+          }
+        }
+        fetchData()
+      }
+    }
+  }, [isLoggedIn, isSampleUser])
 
   // If not logged in, don't render the page content
   if (!isLoggedIn) {
@@ -77,371 +199,337 @@ export default function DashboardPage() {
         <main className="flex-1 overflow-auto">
           <div className="container py-6 md:py-12">
             <div className="mb-8">
-              <h1 className="text-3xl font-bold tracking-tight">Your 2023 YouTube Wrapped</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Your YouTube Wrapped</h1>
               <p className="text-muted-foreground">
-                Here's a summary of your YouTube activity from January 1 to December 31, 2023.
+                {stats ? `Here's a summary of your YouTube activity from ${stats.primaryYear.year}${stats.comparisonYear ? ` compared to ${stats.comparisonYear.year}` : ''}.` : 'Loading your YouTube activity...'}
               </p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle>Total Watch Time</CardTitle>
-                  <CardDescription>Hours spent watching videos</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-4xl font-bold">247</div>
-                  <p className="text-xs text-muted-foreground">hours</p>
-                  <div className="mt-4 flex items-center gap-2">
-                    <div className="text-sm text-muted-foreground">
-                      <span className="text-green-500 font-medium">+18%</span> compared to 2022
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle>Videos Watched</CardTitle>
-                  <CardDescription>Total number of videos</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-4xl font-bold">1,842</div>
-                  <p className="text-xs text-muted-foreground">videos</p>
-                  <div className="mt-4 flex items-center gap-2">
-                    <div className="text-sm text-muted-foreground">
-                      <span className="text-green-500 font-medium">+24%</span> compared to 2022
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle>Unique Creators</CardTitle>
-                  <CardDescription>Different channels you watched</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-4xl font-bold">312</div>
-                  <p className="text-xs text-muted-foreground">creators</p>
-                  <div className="mt-4 flex items-center gap-2">
-                    <div className="text-sm text-muted-foreground">
-                      <span className="text-green-500 font-medium">+7%</span> compared to 2022
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
 
-            <div className="mt-8 grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Categories</CardTitle>
-                  <CardDescription>What you watched the most</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="h-3 w-3 rounded-full bg-red-500"></div>
-                          <span>Gaming</span>
-                        </div>
-                        <span className="text-sm font-medium">32%</span>
-                      </div>
-                      <Progress value={32} className="h-2" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="h-3 w-3 rounded-full bg-blue-500"></div>
-                          <span>Tech</span>
-                        </div>
-                        <span className="text-sm font-medium">28%</span>
-                      </div>
-                      <Progress value={28} className="h-2" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="h-3 w-3 rounded-full bg-green-500"></div>
-                          <span>Music</span>
-                        </div>
-                        <span className="text-sm font-medium">18%</span>
-                      </div>
-                      <Progress value={18} className="h-2" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="h-3 w-3 rounded-full bg-yellow-500"></div>
-                          <span>Education</span>
-                        </div>
-                        <span className="text-sm font-medium">12%</span>
-                      </div>
-                      <Progress value={12} className="h-2" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="h-3 w-3 rounded-full bg-purple-500"></div>
-                          <span>Entertainment</span>
-                        </div>
-                        <span className="text-sm font-medium">10%</span>
-                      </div>
-                      <Progress value={10} className="h-2" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Creators</CardTitle>
-                  <CardDescription>Channels you watched the most</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-muted">
-                        <Image
-                          src="/placeholder.svg?height=40&width=40"
-                          alt="Creator avatar"
-                          width={40}
-                          height={40}
-                          className="rounded-full"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium">MKBHD</p>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">42.3 hours</span>
-                          </div>
-                        </div>
-                        <Progress value={85} className="mt-2 h-2" />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-muted">
-                        <Image
-                          src="/placeholder.svg?height=40&width=40"
-                          alt="Creator avatar"
-                          width={40}
-                          height={40}
-                          className="rounded-full"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium">Linus Tech Tips</p>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">38.7 hours</span>
-                          </div>
-                        </div>
-                        <Progress value={78} className="mt-2 h-2" />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-muted">
-                        <Image
-                          src="/placeholder.svg?height=40&width=40"
-                          alt="Creator avatar"
-                          width={40}
-                          height={40}
-                          className="rounded-full"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium">Veritasium</p>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">29.5 hours</span>
-                          </div>
-                        </div>
-                        <Progress value={60} className="mt-2 h-2" />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-muted">
-                        <Image
-                          src="/placeholder.svg?height=40&width=40"
-                          alt="Creator avatar"
-                          width={40}
-                          height={40}
-                          className="rounded-full"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium">Fireship</p>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">24.8 hours</span>
-                          </div>
-                        </div>
-                        <Progress value={50} className="mt-2 h-2" />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="mt-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Monthly Watch Time</CardTitle>
-                  <CardDescription>How your viewing changed throughout the year</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Tabs defaultValue="hours">
-                    <TabsList className="mb-4">
-                      <TabsTrigger value="hours">Hours</TabsTrigger>
-                      <TabsTrigger value="videos">Videos</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="hours">
-                      <div className="h-[300px]">
-                        <div className="flex h-full items-end gap-2">
-                          {[18, 22, 25, 20, 28, 32, 35, 40, 38, 30, 25, 22].map((value, index) => (
-                            <div key={index} className="group relative flex-1">
-                              <div
-                                className="relative h-full rounded-t-md bg-gradient-to-t from-red-600 to-red-400 transition-all hover:opacity-80"
-                                style={{ height: `${(value / 40) * 100}%` }}
-                              >
-                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
-                                  {value} hours
-                                </div>
-                              </div>
-                              <div className="mt-2 text-center text-xs text-muted-foreground">
-                                {
-                                  ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][
-                                    index
-                                  ]
-                                }
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </TabsContent>
-                    <TabsContent value="videos">
-                      <div className="h-[300px]">
-                        <div className="flex h-full items-end gap-2">
-                          {[120, 145, 160, 130, 170, 190, 210, 230, 200, 180, 150, 140].map((value, index) => (
-                            <div key={index} className="group relative flex-1">
-                              <div
-                                className="relative h-full rounded-t-md bg-gradient-to-t from-blue-600 to-blue-400 transition-all hover:opacity-80"
-                                style={{ height: `${(value / 230) * 100}%` }}
-                              >
-                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
-                                  {value} videos
-                                </div>
-                              </div>
-                              <div className="mt-2 text-center text-xs text-muted-foreground">
-                                {
-                                  ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][
-                                    index
-                                  ]
-                                }
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="mt-8">
-              <h2 className="mb-4 text-2xl font-bold tracking-tight">Your 2023 Highlights</h2>
+            {isLoading ? (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Most Watched Video</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="aspect-video overflow-hidden rounded-md bg-muted">
-                      <Image
-                        src="/placeholder.svg?height=180&width=320"
-                        alt="Video thumbnail"
-                        width={320}
-                        height={180}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <h3 className="mt-2 font-medium line-clamp-2">The Ultimate Guide to Next.js 13 App Router</h3>
-                    <p className="text-sm text-muted-foreground">Fireship</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <Star className="h-4 w-4 text-yellow-500" />
-                      <span className="text-sm">Watched 14 times</span>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Longest Watching Session</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">5.2</div>
-                    <p className="text-sm text-muted-foreground">hours straight</p>
-                    <p className="mt-2 text-sm">
-                      On July 15, 2023, you had your longest YouTube marathon watching gaming content.
-                    </p>
-                    <div className="mt-4 rounded-md bg-muted p-2 text-sm">
-                      <p className="font-medium">Top video from this session:</p>
-                      <p className="line-clamp-2">Minecraft Hardcore Survival: Day 1000</p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Most Active Time</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">9PM - 11PM</div>
-                    <p className="text-sm text-muted-foreground">evening viewer</p>
-                    <div className="mt-4 h-16">
-                      <div className="flex h-full items-end gap-1">
-                        {[
-                          10, 5, 8, 15, 25, 30, 45, 60, 75, 90, 85, 70, 60, 50, 65, 80, 90, 95, 100, 90, 75, 60, 40, 20,
-                        ].map((value, index) => (
-                          <div
-                            key={index}
-                            className="flex-1 rounded-t bg-gradient-to-t from-purple-600 to-purple-400"
-                            style={{ height: `${value}%` }}
-                          ></div>
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <CardHeader className="pb-2">
+                      <CardTitle>Loading...</CardTitle>
+                      <CardDescription>Please wait</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-8 w-full animate-pulse rounded bg-muted"></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : stats ? (
+              <>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle>Total Watch Time</CardTitle>
+                      <CardDescription>Hours spent watching videos</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-4xl font-bold">Coming Soon</div>
+                      <p className="text-xs text-muted-foreground">Watch time data will be available soon</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle>Videos Watched</CardTitle>
+                      <CardDescription>Total number of videos</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-4xl font-bold">{stats.primaryYear.videosWatched.toLocaleString()}</div>
+                      <p className="text-xs text-muted-foreground">videos</p>
+                      {stats.comparisonYear && (
+                        <div className="mt-4 flex items-center gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            <span className={stats.primaryYear.videosWatched > stats.comparisonYear.videosWatched ? "text-green-500" : "text-red-500"}>
+                              {Math.round(((stats.primaryYear.videosWatched - stats.comparisonYear.videosWatched) / stats.comparisonYear.videosWatched) * 100)}%
+                            </span>{" "}
+                            compared to {stats.comparisonYear.year}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle>Unique Creators</CardTitle>
+                      <CardDescription>Different channels you watched</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-4xl font-bold">{stats.primaryYear.uniqueCreators}</div>
+                      <p className="text-xs text-muted-foreground">creators</p>
+                      {stats.comparisonYear && (
+                        <div className="mt-4 flex items-center gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            <span className={stats.primaryYear.uniqueCreators > stats.comparisonYear.uniqueCreators ? "text-green-500" : "text-red-500"}>
+                              {Math.round(((stats.primaryYear.uniqueCreators - stats.comparisonYear.uniqueCreators) / stats.comparisonYear.uniqueCreators) * 100)}%
+                            </span>{" "}
+                            compared to {stats.comparisonYear.year}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="mt-8 grid gap-6 md:grid-cols-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Top Categories</CardTitle>
+                      <CardDescription>What you watched the most</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="h-3 w-3 rounded-full bg-red-500"></div>
+                              <span>{stats.primaryYear.topCategory}</span>
+                            </div>
+                            <span className="text-sm font-medium">32%</span>
+                          </div>
+                          <Progress value={32} className="h-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="h-3 w-3 rounded-full bg-blue-500"></div>
+                              <span>Tech</span>
+                            </div>
+                            <span className="text-sm font-medium">28%</span>
+                          </div>
+                          <Progress value={28} className="h-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="h-3 w-3 rounded-full bg-green-500"></div>
+                              <span>Music</span>
+                            </div>
+                            <span className="text-sm font-medium">18%</span>
+                          </div>
+                          <Progress value={18} className="h-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="h-3 w-3 rounded-full bg-yellow-500"></div>
+                              <span>Education</span>
+                            </div>
+                            <span className="text-sm font-medium">12%</span>
+                          </div>
+                          <Progress value={12} className="h-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="h-3 w-3 rounded-full bg-purple-500"></div>
+                              <span>Entertainment</span>
+                            </div>
+                            <span className="text-sm font-medium">10%</span>
+                          </div>
+                          <Progress value={10} className="h-2" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Top Creators</CardTitle>
+                      <CardDescription>Channels you watched the most</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {stats.primaryYear.topCreators.map((creator, index) => (
+                          <CreatorCard key={creator.name} creator={creator} rank={index + 1} />
                         ))}
                       </div>
-                    </div>
-                    <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                      <span>12AM</span>
-                      <span>6AM</span>
-                      <span>12PM</span>
-                      <span>6PM</span>
-                      <span>12AM</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+                    </CardContent>
+                  </Card>
+                </div>
 
-            <div className="mt-12 text-center">
-              <ShareStats
-                stats={userStats}
-                iconOnly={false}
-                trigger={
-                  <Button size="lg" className="gap-2">
-                    <Share2 className="h-4 w-4" />
-                    Share My YouTube Wrapped
-                  </Button>
-                }
-              />
-              <p className="mt-2 text-sm text-muted-foreground">Generate a shareable image to post on social media</p>
-            </div>
+                <div className="mt-8">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Monthly Watch Time</CardTitle>
+                      <CardDescription>How your viewing changed throughout the year</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <h3 className="text-lg font-medium mb-2">Hours Watched</h3>
+                          <div className="h-64">
+                            <Bar
+                              data={{
+                                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                                datasets: [
+                                  {
+                                    label: 'Hours',
+                                    data: [120, 150, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360],
+                                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                                    borderColor: 'rgb(59, 130, 246)',
+                                    borderWidth: 1,
+                                    borderRadius: 8,
+                                    borderSkipped: false,
+                                  },
+                                ],
+                              }}
+                              options={{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                  y: {
+                                    beginAtZero: true,
+                                    title: {
+                                      display: true,
+                                      text: 'Hours',
+                                    },
+                                  },
+                                },
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-medium mb-2">Videos Watched</h3>
+                          <div className="h-64">
+                            <Bar
+                              data={{
+                                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                                datasets: [
+                                  {
+                                    label: 'Videos',
+                                    // data: [120, 150, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360],
+                                    data: stats?.primaryYear.monthlyVideoCounts || Array(12).fill(0),
+                                    backgroundColor: 'rgba(16, 185, 129, 0.5)',
+                                    borderColor: 'rgb(16, 185, 129)',
+                                    borderWidth: 1,
+                                    borderRadius: 8,
+                                    borderSkipped: false,
+                                  },
+                                ],
+                              }}
+                              options={{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                  y: {
+                                    beginAtZero: true,
+                                    title: {
+                                      display: true,
+                                      text: 'Videos',
+                                    },
+                                  },
+                                },
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="mt-8">
+                  <h2 className="mb-4 text-2xl font-bold tracking-tight">Your {stats.primaryYear.year} Highlights</h2>
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">Most Watched Video</CardTitle>
+                        <CardDescription>Your most rewatched video of the year</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="aspect-video overflow-hidden rounded-md bg-muted">
+                          <Image
+                            src="/placeholder.svg?height=180&width=320"
+                            alt="Video thumbnail"
+                            width={320}
+                            height={180}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <h3 className="mt-2 font-medium line-clamp-2">{stats?.primaryYear.mostWatchedVideo.title}</h3>
+                        <p className="text-sm text-muted-foreground">{stats?.primaryYear.mostWatchedVideo.channel}</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <Play className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">
+                            Watched {stats?.primaryYear.mostWatchedVideo.count} times
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">Longest Watching Session</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-bold">5.2</div>
+                        <p className="text-sm text-muted-foreground">hours straight</p>
+                        <p className="mt-2 text-sm">
+                          On July 15, {stats.primaryYear.year}, you had your longest YouTube marathon watching gaming content.
+                        </p>
+                        <div className="mt-4 rounded-md bg-muted p-2 text-sm">
+                          <p className="font-medium">Top video from this session:</p>
+                          <p className="line-clamp-2">Minecraft Hardcore Survival: Day 1000</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">Most Active Time</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-bold">9PM - 11PM</div>
+                        <p className="text-sm text-muted-foreground">evening viewer</p>
+                        <div className="mt-4 h-16">
+                          <div className="flex h-full items-end gap-1">
+                            {[
+                              10, 5, 8, 15, 25, 30, 45, 60, 75, 90, 85, 70, 60, 50, 65, 80, 90, 95, 100, 90, 75, 60, 40, 20,
+                            ].map((value, index) => (
+                              <div
+                                key={index}
+                                className="flex-1 rounded-t bg-gradient-to-t from-purple-600 to-purple-400"
+                                style={{ height: `${value}%` }}
+                              ></div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+                          <span>12AM</span>
+                          <span>6AM</span>
+                          <span>12PM</span>
+                          <span>6PM</span>
+                          <span>12AM</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+                
+                <div className="mt-12 text-center">
+                  <ShareStats
+                    stats={{
+                      watchTime: stats?.primaryYear.watchTime || 0,
+                      videosWatched: stats?.primaryYear.videosWatched || 0,
+                      topCategory: stats?.primaryYear.topCategory || "Unknown",
+                      topCreator: stats?.primaryYear.topCreator || "Unknown"
+                    }}
+                    iconOnly={false}
+                    trigger={
+                      <Button size="lg" className="gap-2">
+                        <Share2 className="h-4 w-4" />
+                        Share My YouTube Wrapped
+                      </Button>
+                    }
+                  />
+                  <p className="mt-2 text-sm text-muted-foreground">Generate a shareable image to post on social media</p>
+                </div>
+              </>
+            ) : null}
           </div>
         </main>
       </div>
