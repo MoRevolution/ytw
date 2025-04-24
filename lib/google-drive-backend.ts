@@ -1,7 +1,5 @@
 import { google } from "googleapis";
 import JSZip from "jszip";
-import fetch from "node-fetch"; 
-import path from "path";
 
 // Initialize Google Drive API client
 const drive = google.drive("v3");
@@ -55,25 +53,12 @@ export async function fetchAndExtractZip(accessToken: string): Promise<object> {
     console.log("📑 Files in zip:", Object.keys(zip.files).length);
 
     // Try to find the watch history file
-    const possiblePaths = [
-      path.join("Takeout", "YouTube and YouTube Music", "history", "watch-history.json"),
-      "Takeout/YouTube and YouTube Music/history/watch-history.json",
-      "YouTube and YouTube Music/history/watch-history.json",
-      "history/watch-history.json",
-      "watch-history.json"
-    ];
+    const targetFilePath = "Takeout/YouTube and YouTube Music/history/watch-history.json";
+    console.log("🔍 Searching for watch history at path:", targetFilePath);
 
-    let targetFile = null;
-    for (const tryPath of possiblePaths) {
-      targetFile = zip.file(tryPath);
-      if (targetFile) {
-        console.log("✅ Found watch history at:", tryPath);
-        break;
-      }
-    }
-
+    const targetFile = zip.file(targetFilePath);
     if (!targetFile) {
-      console.log("❌ Watch history not found in paths:", possiblePaths);
+      console.log(`  ❌ Not found at path: ${targetFilePath}`);
       throw new Error("Watch history file not found in zip");
     }
 
