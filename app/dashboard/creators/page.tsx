@@ -7,24 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 export default function CreatorsPage() {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Film className="h-6 w-6 text-red-500" />
-            <span className="text-xl font-bold">YouTube Wrapped</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button size="sm" variant="outline">
-              Share Stats
-            </Button>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader />
       <div className="flex flex-1">
         <aside className="hidden w-[250px] flex-col border-r px-4 py-6 md:flex">
           <nav className="mt-8 flex flex-col gap-2">

@@ -8,10 +8,8 @@ import { BarChart3, Clock, Film, Home, Users } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { UserProfile } from "@/components/user-profile"
-import { ShareStats } from "@/components/share-stats"
 import { useAuth } from "@/contexts/auth-context"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 // Mock stats for sharing
 const userStats = {
@@ -39,19 +37,7 @@ export default function CategoriesPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Film className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">YouTube Wrapped</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <ShareStats stats={userStats} />
-            <UserProfile />
-          </div>
-        </div>
-      </header>
+      <DashboardHeader />
       <div className="flex flex-1">
         <aside className="hidden w-[250px] flex-col border-r px-4 py-6 md:flex">
           <nav className="mt-8 flex flex-col gap-2">
