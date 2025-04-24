@@ -1,21 +1,25 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowLeft, Calendar, Clock, Film, Mail, MapPin } from "lucide-react"
-
+import { ArrowLeft, Calendar, Clock, Film, Mail, MapPin, RefreshCw } from "lucide-react"
+import { storeDataInIndexedDB, processAndStoreWatchHistoryByYear } from "@/lib/indexeddb"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UserProfile } from "@/components/user-profile"
 import { useAuth } from "@/contexts/auth-context"
+import { toast } from "@/hooks/use-toast"
+import { auth } from "@/lib/firebase"
+import { fetchAndProcessWatchHistory } from "@/lib/fetch-watch-history"
 
 export default function ProfilePage() {
   const { isLoggedIn, user, logout } = useAuth()
   const router = useRouter()
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Redirect if not logged in
   useEffect(() => {
@@ -27,6 +31,54 @@ export default function ProfilePage() {
   // If not logged in, don't render the page content
   if (!isLoggedIn) {
     return null
+  }
+
+  const handleRefreshData = async () => {
+    setIsRefreshing(true)
+    try {
+      // Get the user's ID token
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) {
+        throw new Error("No authenticated user found");
+      }
+
+      // Get the user's stored access token from Firestore
+      const response = await fetch('/api/users/get-token', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+      });
+      
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch access token: ${response.status}`);
+      }
+
+      const { accessToken } = await response.json();
+      
+      if (!accessToken) {
+        throw new Error("No access token available");
+      }
+
+      // Use the helper function to handle the rest
+      await fetchAndProcessWatchHistory(accessToken, user?.uid || "");
+
+      toast({
+        title: "Data refreshed",
+        description: "Your YouTube watch history has been successfully updated and processed.",
+      });
+    } catch (error: any) {
+      console.error("❌ Error:", error.message);
+      toast({
+        title: "Error",
+        description: "Could not refresh watch history. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   // Mock stats data
@@ -93,7 +145,25 @@ export default function ProfilePage() {
                     <span>Joined 2018</span>
                   </div>
                   <Separator />
-                  <div className="pt-2">
+                  <div className="space-y-2">
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      onClick={handleRefreshData}
+                      disabled={isRefreshing}
+                    >
+                      {isRefreshing ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Refreshing...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Refresh Data
+                        </>
+                      )}
+                    </Button>
                     <Button variant="destructive" className="w-full" onClick={logout}>
                       Log Out
                     </Button>
@@ -135,8 +205,6 @@ export default function ProfilePage() {
                       Your data is only used to generate your YouTube Wrapped insights. We don't share your viewing
                       history with third parties.
                     </p>
-                    <div className="flex justify-end">
-                    </div>
                   </div>
                 </CardContent>
               </Card>
