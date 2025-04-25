@@ -102,57 +102,36 @@ export async function getVideosMetadata(
   const MAX_ERRORS = 5; // Maximum number of errors before stopping
 
   try {
-    // Process videos in smaller batches to avoid overwhelming Redis
-    const BATCH_SIZE = 700;
-    for (let i = 0; i < videoIds.length; i += BATCH_SIZE) {
-      const batch = videoIds.slice(i, i + BATCH_SIZE);
-      console.log(`🔄 Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(videoIds.length/BATCH_SIZE)}`);
+    // Fetch all video metadata at once using MGET
+    console.log(`🔄 Fetching metadata for ${videoIds.length} videos from Redis...`);
+    const cachedData = await redis.mget(...videoIds);
+    
+    // Process the results
+    cachedData.forEach((data, index) => {
+      const videoId = videoIds[index];
       
-      // Process each batch with a small delay
-      await Promise.all(
-        batch.map(async (videoId) => {
-          try {
-            const cachedData = await redis.get(videoId);
-            
-            if (!cachedData) {
-              missingIds.push(videoId);
-              return;
-            }
-
-            try {
-              const decodedBytes = Buffer.from(cachedData as string, "base64");
-              const decompressedData = unzipSync(decodedBytes);
-              const jsonString = decompressedData.toString('utf8');
-              const metadata = JSON.parse(jsonString);
-              metadataMap.set(videoId, metadata);
-            } catch (parseError) {
-              errorCount++;
-              if (errorCount <= MAX_ERRORS) {
-                console.error(`❌ Error processing video ${videoId}:`, parseError);
-              }
-              if (errorCount >= MAX_ERRORS) {
-                throw new Error(`Too many errors (${errorCount}) while processing videos. Stopping...`);
-              }
-              missingIds.push(videoId);
-            }
-          } catch (error) {
-            errorCount++;
-            if (errorCount <= MAX_ERRORS) {
-              console.error(`❌ Error processing video ${videoId}:`, error);
-            }
-            if (errorCount >= MAX_ERRORS) {
-              throw new Error(`Too many errors (${errorCount}) while processing videos. Stopping...`);
-            }
-            missingIds.push(videoId);
-          }
-        })
-      );
-      
-      // Add a small delay between batches
-      if (i + BATCH_SIZE < videoIds.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+      if (!data) {
+        missingIds.push(videoId);
+        return;
       }
-    }
+
+      try {
+        const decodedBytes = Buffer.from(data as string, "base64");
+        const decompressedData = unzipSync(decodedBytes);
+        const jsonString = decompressedData.toString('utf8');
+        const metadata = JSON.parse(jsonString);
+        metadataMap.set(videoId, metadata);
+      } catch (parseError) {
+        errorCount++;
+        if (errorCount <= MAX_ERRORS) {
+          console.error(`❌ Error processing video ${videoId}:`, parseError);
+        }
+        if (errorCount >= MAX_ERRORS) {
+          throw new Error(`Too many errors (${errorCount}) while processing videos. Stopping...`);
+        }
+        missingIds.push(videoId);
+      }
+    });
 
     console.log(`📊 Found ${metadataMap.size} videos in cache, ${missingIds.length} to fetch from YouTube API`);
     if (errorCount > 0) {
@@ -164,6 +143,7 @@ export async function getVideosMetadata(
       // YouTube API has a limit of 50 videos per request
       const BATCH_SIZE = 50;
       const batches = [];
+      const cacheEntries: Record<string, string> = {};
       
       // Split missingIds into batches of 50
       for (let i = 0; i < missingIds.length; i += BATCH_SIZE) {
@@ -235,10 +215,10 @@ export async function getVideosMetadata(
             // Store in memory
             metadataMap.set(video.id, metadata);
 
-            // Cache in Redis
+            // Prepare for Redis caching
             const compressedEntry = deflateSync(JSON.stringify(metadata));
             const encodedEntry = Buffer.from(compressedEntry).toString("base64");
-            await redis.set(video.id, encodedEntry);
+            cacheEntries[video.id] = encodedEntry;
           }
 
           // Add a delay between batches to avoid rate limiting
@@ -250,6 +230,12 @@ export async function getVideosMetadata(
           // Continue with next batch even if one fails
           continue;
         }
+      }
+
+      // Cache all entries in Redis at once using MSET
+      if (Object.keys(cacheEntries).length > 0) {
+        console.log(`🔄 Caching ${Object.keys(cacheEntries).length} videos in Redis...`);
+        await redis.mset(cacheEntries);
       }
     }
 
