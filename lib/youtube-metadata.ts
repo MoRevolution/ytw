@@ -2,7 +2,10 @@ import { deflateSync, unzipSync } from "zlib";
 import { Buffer } from "buffer";
 import { Redis } from "@upstash/redis";
 
-const redis = Redis.fromEnv();
+const redis = new Redis({
+  url: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL!,
+  token: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN!,
+});
 
 interface YouTubeVideoMetadata {
   video_id: string;
@@ -95,26 +98,66 @@ export async function getVideosMetadata(
 
   const metadataMap = new Map<string, YouTubeVideoMetadata>();
   const missingIds: string[] = [];
+  let errorCount = 0;
+  const MAX_ERRORS = 5; // Maximum number of errors before stopping
 
   try {
-    // First try to get all from cache in parallel
-    await Promise.all(
-      videoIds.map(async (videoId) => {
-        const cachedData = await redis.get(videoId);
-        if (cachedData) {
-          const decodedBytes = Buffer.from(cachedData as string, "base64");
-          const decompressedData = unzipSync(decodedBytes);
-          metadataMap.set(
-            videoId,
-            JSON.parse(decompressedData.toString("utf-8"))
-          );
-        } else {
-          missingIds.push(videoId);
-        }
-      })
-    );
+    // Process videos in smaller batches to avoid overwhelming Redis
+    const BATCH_SIZE = 700;
+    for (let i = 0; i < videoIds.length; i += BATCH_SIZE) {
+      const batch = videoIds.slice(i, i + BATCH_SIZE);
+      console.log(`🔄 Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(videoIds.length/BATCH_SIZE)}`);
+      
+      // Process each batch with a small delay
+      await Promise.all(
+        batch.map(async (videoId) => {
+          try {
+            const cachedData = await redis.get(videoId);
+            
+            if (!cachedData) {
+              missingIds.push(videoId);
+              return;
+            }
 
-    console.log(`📊 Found ${metadataMap.size} videos in cache, ${missingIds.length} to fetch`);
+            try {
+              const decodedBytes = Buffer.from(cachedData as string, "base64");
+              const decompressedData = unzipSync(decodedBytes);
+              const jsonString = decompressedData.toString('utf8');
+              const metadata = JSON.parse(jsonString);
+              metadataMap.set(videoId, metadata);
+            } catch (parseError) {
+              errorCount++;
+              if (errorCount <= MAX_ERRORS) {
+                console.error(`❌ Error processing video ${videoId}:`, parseError);
+              }
+              if (errorCount >= MAX_ERRORS) {
+                throw new Error(`Too many errors (${errorCount}) while processing videos. Stopping...`);
+              }
+              missingIds.push(videoId);
+            }
+          } catch (error) {
+            errorCount++;
+            if (errorCount <= MAX_ERRORS) {
+              console.error(`❌ Error processing video ${videoId}:`, error);
+            }
+            if (errorCount >= MAX_ERRORS) {
+              throw new Error(`Too many errors (${errorCount}) while processing videos. Stopping...`);
+            }
+            missingIds.push(videoId);
+          }
+        })
+      );
+      
+      // Add a small delay between batches
+      if (i + BATCH_SIZE < videoIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    console.log(`📊 Found ${metadataMap.size} videos in cache, ${missingIds.length} to fetch from YouTube API`);
+    if (errorCount > 0) {
+      console.log(`⚠️ Encountered ${errorCount} errors while processing videos`);
+    }
 
     // If we have videos to fetch from YouTube API
     if (missingIds.length > 0) {
@@ -127,7 +170,7 @@ export async function getVideosMetadata(
         batches.push(missingIds.slice(i, i + BATCH_SIZE));
       }
 
-      console.log(`🔄 Processing ${batches.length} batches of videos...`);
+      console.log(`🔄 Fetching ${batches.length} batches of videos from YouTube API...`);
 
       // Process each batch with a delay to avoid rate limiting
       for (let i = 0; i < batches.length; i++) {
@@ -139,7 +182,7 @@ export async function getVideosMetadata(
             `https://www.googleapis.com/youtube/v3/videos?` +
               `part=snippet,statistics,contentDetails&` +
               `id=${batch.join(",")}&` +
-              `key=${process.env.YOUTUBE_API_KEY}&` +
+              `key=${process.env.NEXT_PUBLIC_YOUTUBE_API_KEY}&` +
               `fields=items(` +
               `id,snippet(` +
               `title,channelTitle,categoryId,publishedAt,tags` +
