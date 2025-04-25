@@ -28,11 +28,11 @@ ChartJS.register(
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ShareStats } from "@/components/share-stats"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
-import { fetchDefaultComparison, DashboardStats } from "@/lib/fetch-dashboard-data"
+import { fetchDefaultComparison, DashboardStats, CategoryStats } from "@/lib/fetch-dashboard-data"
+import { WordCloud } from "@/components/word-cloud"
 
 // Mock stats for sample user
 const mockStats = {
@@ -52,11 +52,35 @@ const mockStats = {
       { name: "The Verge", watchTime: 20.1, videoCount: 45 }
     ],
     monthlyVideoCounts: [120, 150, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360],
+    monthlyWatchTime: [12.5, 15.2, 18.7, 20.3, 22.1, 24.5, 26.8, 28.9, 30.2, 32.4, 34.7, 36.9],
+    categoryStats: [
+      { name: "Gaming", watchTime: 65.2, percentage: 32.5 },
+      { name: "Tech", watchTime: 56.8, percentage: 28.4 },
+      { name: "Music", watchTime: 36.0, percentage: 18.0 },
+      { name: "Education", watchTime: 24.0, percentage: 12.0 },
+      { name: "Entertainment", watchTime: 20.0, percentage: 10.0 }
+    ],
     mostWatchedVideo: {
       title: "The Ultimate Guide to Next.js 13 App Router",
       channel: "Fireship",
       count: 14
-    }
+    },
+    tags: [
+      "gaming",
+      "tech",
+      "tutorial",
+      "review",
+      "news",
+      "music",
+      "vlog",
+      "coding",
+      "react",
+      "javascript",
+      "python",
+      "ai",
+      "machine learning",
+      "web development"
+    ]
   },
   comparisonYear: {
     watchTime: 210,
@@ -74,11 +98,31 @@ const mockStats = {
       { name: "Fireship", watchTime: 22.4, videoCount: 45 }
     ],
     monthlyVideoCounts: [100, 130, 160, 180, 200, 220, 240, 260, 280, 300, 320, 340],
+    monthlyWatchTime: [10.2, 13.5, 16.8, 18.2, 20.1, 22.4, 24.7, 26.8, 28.9, 30.2, 32.4, 34.6],
+    categoryStats: [
+      { name: "Tech", watchTime: 58.8, percentage: 28.0 },
+      { name: "Gaming", watchTime: 52.5, percentage: 25.0 },
+      { name: "Music", watchTime: 42.0, percentage: 20.0 },
+      { name: "Education", watchTime: 31.5, percentage: 15.0 },
+      { name: "Entertainment", watchTime: 25.2, percentage: 12.0 }
+    ],
     mostWatchedVideo: {
       title: "The Ultimate Guide to Next.js 13 App Router",
       channel: "Fireship",
       count: 12
-    }
+    },
+    tags: [
+      "tech",
+      "gaming",
+      "music",
+      "education",
+      "entertainment",
+      "tutorial",
+      "review",
+      "news",
+      "vlog",
+      "coding"
+    ]
   }
 }
 
@@ -89,10 +133,16 @@ interface CreatorCardProps {
     videoCount: number
   }
   rank: number
+  comparisonCreator?: {
+    name: string
+    watchTime: number
+    videoCount: number
+  }
+  maxWatchTime: number
 }
 
-function CreatorCard({ creator, rank }: CreatorCardProps) {
-  const progressValue = (creator.watchTime / 50) * 100 // Assuming 50 hours is max for now
+function CreatorCard({ creator, rank, comparisonCreator, maxWatchTime }: CreatorCardProps) {
+  const progressValue = (creator.watchTime / maxWatchTime) * 100
 
   return (
     <div className="flex items-center gap-4">
@@ -114,6 +164,14 @@ function CreatorCard({ creator, rank }: CreatorCardProps) {
           </div>
         </div>
         <Progress value={progressValue} className="mt-2 h-2" />
+        {comparisonCreator && (
+          <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+            <span>{comparisonCreator.watchTime.toFixed(1)} hours last year</span>
+            <span className={creator.watchTime > comparisonCreator.watchTime ? "text-green-500" : "text-red-500"}>
+              {Math.round(((creator.watchTime - comparisonCreator.watchTime) / comparisonCreator.watchTime) * 100)}%
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -141,11 +199,60 @@ export default function DashboardPage() {
       } else {
         const fetchData = async () => {
           try {
+            // Check if we're in the browser environment
+            // Check if we have cached data
+            const cachedData = localStorage.getItem('dashboardStats')
+            const cachedTimestamp = localStorage.getItem('dashboardStatsTimestamp')
+            const now = new Date().getTime()
+            
+            // If we have cached data less than 1 hour old, use it
+            if (cachedData && cachedTimestamp) {
+              try {
+                const parsedData = JSON.parse(cachedData)
+                if ((now - parseInt(cachedTimestamp)) < 3600000) {
+                  console.log('📊 Using cached dashboard stats')
+                  setStats(parsedData)
+                  setIsLoading(false)
+                  return
+                }
+              } catch (parseError) {
+                console.error('❌ Error parsing cached data:', parseError)
+                console.error('Cached data:', cachedData)
+                // Clear invalid cached data
+                localStorage.removeItem('dashboardStats')
+                localStorage.removeItem('dashboardStatsTimestamp')
+              }
+            }
+
+            // Otherwise fetch new data
+            console.log('🔄 Fetching new dashboard stats...')
             const data = await fetchDefaultComparison()
-            setStats(data)
-            console.log(data)
+            
+            try {
+              // Test the data before setting it
+              const testString = JSON.stringify(data)
+              const testParse = JSON.parse(testString)
+              console.log('✅ Data validation successful')
+              
+              setStats(data)
+              
+              // Cache the new data if we're in the browser
+              localStorage.setItem('dashboardStats', testString)
+              localStorage.setItem('dashboardStatsTimestamp', new Date().getTime().toString())
+            } catch (validationError) {
+              console.error('❌ Error validating new data:', validationError)
+              console.error('Problematic data:', data)
+              throw validationError
+            }
           } catch (error) {
-            console.error("Error fetching dashboard stats:", error)
+            console.error("❌ Error in fetchData:", error)
+            // If we have mock stats, use them as fallback
+            if (mockStats) {
+              console.log('⚠️ Using mock stats as fallback')
+              setStats(mockStats)
+              // Show error message to user
+              alert('⚠️ There was an error loading your YouTube data. Showing sample data instead. Please try refreshing the page.')
+            }
           } finally {
             setIsLoading(false)
           }
@@ -229,8 +336,18 @@ export default function DashboardPage() {
                       <CardDescription>Hours spent watching videos</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-4xl font-bold">Coming Soon</div>
-                      <p className="text-xs text-muted-foreground">Watch time data will be available soon</p>
+                      <div className="text-4xl font-bold">{stats?.primaryYear.watchTime.toFixed(1)}</div>
+                      <p className="text-xs text-muted-foreground">hours</p>
+                      {stats?.comparisonYear && (
+                        <div className="mt-4 flex items-center gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            <span className={stats.primaryYear.watchTime > stats.comparisonYear.watchTime ? "text-green-500" : "text-red-500"}>
+                              {Math.round(((stats.primaryYear.watchTime - stats.comparisonYear.watchTime) / stats.comparisonYear.watchTime) * 100)}%
+                            </span>{" "}
+                            compared to {stats.comparisonYear.year}
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                   <Card>
@@ -283,56 +400,20 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="h-3 w-3 rounded-full bg-red-500"></div>
-                              <span>{stats.primaryYear.topCategory}</span>
+                        {stats?.primaryYear?.categoryStats?.slice(0, 5).map((category: CategoryStats, index: number) => (
+                          <div key={category.name} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="h-3 w-3 rounded-full" style={{
+                                  backgroundColor: `hsl(${index * 30}, 70%, 50%)`
+                                }} />
+                                <span>{category.name}</span>
+                              </div>
+                              <span className="text-sm font-medium">{category.percentage.toFixed(1)}%</span>
                             </div>
-                            <span className="text-sm font-medium">32%</span>
+                            <Progress value={category.percentage} className="h-2" />
                           </div>
-                          <Progress value={32} className="h-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="h-3 w-3 rounded-full bg-blue-500"></div>
-                              <span>Tech</span>
-                            </div>
-                            <span className="text-sm font-medium">28%</span>
-                          </div>
-                          <Progress value={28} className="h-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="h-3 w-3 rounded-full bg-green-500"></div>
-                              <span>Music</span>
-                            </div>
-                            <span className="text-sm font-medium">18%</span>
-                          </div>
-                          <Progress value={18} className="h-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="h-3 w-3 rounded-full bg-yellow-500"></div>
-                              <span>Education</span>
-                            </div>
-                            <span className="text-sm font-medium">12%</span>
-                          </div>
-                          <Progress value={12} className="h-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="h-3 w-3 rounded-full bg-purple-500"></div>
-                              <span>Entertainment</span>
-                            </div>
-                            <span className="text-sm font-medium">10%</span>
-                          </div>
-                          <Progress value={10} className="h-2" />
-                        </div>
+                        ))}
                       </div>
                     </CardContent>
                   </Card>
@@ -344,9 +425,27 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {stats.primaryYear.topCreators.map((creator, index) => (
-                          <CreatorCard key={creator.name} creator={creator} rank={index + 1} />
-                        ))}
+                        {(() => {
+                          // Find the maximum watch time among current year's top creators
+                          const maxWatchTime = Math.max(
+                            ...stats.primaryYear.topCreators.map(c => c.watchTime)
+                          )
+                          
+                          return stats.primaryYear.topCreators.map((creator, index) => {
+                            const comparisonCreator = stats.comparisonYear?.topCreators.find(
+                              c => c.name === creator.name
+                            )
+                            return (
+                              <CreatorCard 
+                                key={creator.name} 
+                                creator={creator} 
+                                rank={index + 1}
+                                comparisonCreator={comparisonCreator}
+                                maxWatchTime={maxWatchTime}
+                              />
+                            )
+                          })
+                        })()}
                       </div>
                     </CardContent>
                   </Card>
@@ -369,7 +468,7 @@ export default function DashboardPage() {
                                 datasets: [
                                   {
                                     label: 'Hours',
-                                    data: [120, 150, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360],
+                                    data: stats?.primaryYear.monthlyWatchTime || Array(12).fill(0),
                                     backgroundColor: 'rgba(59, 130, 246, 0.5)',
                                     borderColor: 'rgb(59, 130, 246)',
                                     borderWidth: 1,
@@ -430,6 +529,20 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="mt-8">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Video Tags</CardTitle>
+                      <CardDescription>Most common tags in your watched videos</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <WordCloud
+                        tags={stats?.primaryYear?.tags || []}
+                      />
                     </CardContent>
                   </Card>
                 </div>
