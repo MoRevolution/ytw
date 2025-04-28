@@ -3,18 +3,27 @@ import { DB_NAME, FILES_STORE } from './constants'
 import { getCategoryName } from './youtube-categories'
 
 interface WatchHistoryEntry {
+  title: string
+  video_id: string
   channel_name: string
+  channel_url: string
   time_watched: string
-  video_title: string
+  channel: string
+  category_id?: number
+  published_at: string
+  tags: string[]
+  view_count: number
+  like_count: number
+  comment_count: number
+  made_for_kids: boolean
   duration: string // ISO 8601 duration format
-  category_id?: number // Add category_id field
-  tags: string // String representation of an array of tags
 }
 
 interface CreatorStats {
   name: string
   watchTime: number
   videoCount: number
+  channelId: string
 }
 
 export interface CategoryStats {
@@ -35,12 +44,25 @@ export interface DashboardStats {
   monthlyVideoCounts: number[]
   monthlyWatchTime: number[]
   categoryStats: CategoryStats[]
-  mostWatchedVideo: {
+  mostWatchedVideos: {
     title: string
     count: number
     channel: string
+    videoId: string
+  }[]
+  longestSession: {
+    duration: number
+    date: string
+    category: string
+    videos: {
+      title: string
+      channel: string
+      videoId: string
+      likeCount: number
+      duration: string
+    }[]
   }
-  tags: string[] // Add tags field
+  tags: string[]
 }
 
 export interface YearComparison {
@@ -116,28 +138,121 @@ function calculateCategoryStats(entries: WatchHistoryEntry[]): CategoryStats[] {
 
 function extractTagsFromEntries(entries: WatchHistoryEntry[]): string[] {
   const tagCounts: Record<string, number> = {};
-  
+
+  let failedCount = 0;
+
   entries.forEach(entry => {
     try {
-      // Parse the tags string into an array
-      const tags = JSON.parse(entry.tags) as string[];
+      // Tags are now an array, no need to parse
+      const tags = entry.tags;
       
       // Count each tag
       tags.forEach(tag => {
         if (tag && tag.length > 0) {
-          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+          // Clean up the tag
+          const cleanTag = tag
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, ' '); // Normalize whitespace
+          
+          if (cleanTag) {
+            tagCounts[cleanTag] = (tagCounts[cleanTag] || 0) + 1;
+          }
         }
       });
     } catch (error) {
-      console.warn('Failed to parse tags for entry:', entry.video_title);
+      failedCount++;
     }
   });
+
+  if (failedCount > 0) {
+    console.warn(`Failed to process tags for ${failedCount} entries.`);
+  }
   
   // Convert to array and sort by frequency
-  return Object.entries(tagCounts)
+  const sortedTags = Object.entries(tagCounts)
     .sort(([, a], [, b]) => b - a)
-    .slice(0, 50) // Get top 50 tags
+    .slice(0, 250) // Get top 250 tags
     .map(([tag]) => tag);
+
+  console.log('Final tag counts:', tagCounts);
+  console.log('Sorted tags:', sortedTags);
+  
+  return sortedTags;
+}
+
+function calculateLongestSession(entries: WatchHistoryEntry[]): DashboardStats['longestSession'] {
+  // Sort entries by time watched
+  const sortedEntries = [...entries].sort((a, b) => 
+    new Date(a.time_watched).getTime() - new Date(b.time_watched).getTime()
+  )
+
+  let currentSession: WatchHistoryEntry[] = []
+  let longestSession: WatchHistoryEntry[] = []
+  let currentStartTime = new Date(sortedEntries[0].time_watched)
+  
+  // 30 minutes in milliseconds
+  const SESSION_GAP = 30 * 60 * 1000
+
+  for (const entry of sortedEntries) {
+    const entryTime = new Date(entry.time_watched)
+    const timeDiff = entryTime.getTime() - currentStartTime.getTime()
+
+    if (timeDiff <= SESSION_GAP) {
+      currentSession.push(entry)
+    } else {
+      if (currentSession.length > longestSession.length) {
+        longestSession = [...currentSession]
+      }
+      currentSession = [entry]
+      currentStartTime = entryTime
+    }
+  }
+
+  // Check the last session
+  if (currentSession.length > longestSession.length) {
+    longestSession = currentSession
+  }
+
+  if (longestSession.length === 0) {
+    return {
+      duration: 0,
+      date: '',
+      category: 'Unknown',
+      videos: []
+    }
+  }
+
+  // Calculate total duration
+  const startTime = new Date(longestSession[0].time_watched)
+  const endTime = new Date(longestSession[longestSession.length - 1].time_watched)
+  const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60) // Convert to hours
+
+  // Find the most common category in the session
+  const categoryCounts = longestSession.reduce((counts, entry) => {
+    const category = getCategoryName(entry.category_id?.toString() || 'unknown')
+    counts[category] = (counts[category] || 0) + 1
+    return counts
+  }, {} as Record<string, number>)
+
+  const mostCommonCategory = Object.entries(categoryCounts)
+    .sort(([, a], [, b]) => b - a)[0][0]
+
+  // Get all videos from the session, sorted by like count
+  const sessionVideos = longestSession.map(entry => ({
+    title: entry.title,
+    channel: entry.channel_name,
+    videoId: entry.video_id,
+    likeCount: entry.like_count,
+    duration: entry.duration
+  })).sort((a, b) => b.likeCount - a.likeCount)
+
+  return {
+    duration,
+    date: startTime.toISOString(),
+    category: mostCommonCategory,
+    videos: sessionVideos
+  }
 }
 
 export async function fetchYearStats(year: number): Promise<DashboardStats> {
@@ -211,7 +326,8 @@ export async function fetchYearStats(year: number): Promise<DashboardStats> {
       monthlyVideoCounts,
       monthlyWatchTime,
       categoryStats,
-      mostWatchedVideo: calculateMostWatchedVideo(entries),
+      mostWatchedVideos: calculateMostWatchedVideo(entries),
+      longestSession: calculateLongestSession(entries),
       tags
     }
     
@@ -233,7 +349,8 @@ function calculateCreatorStats(entries: WatchHistoryEntry[]): CreatorStats[] {
       stats[creator] = {
         name: creator,
         watchTime: 0,
-        videoCount: 0
+        videoCount: 0,
+        channelId: entry.channel_url ? entry.channel_url.split('/').pop() || '' : ''
       }
     }
     
@@ -251,24 +368,40 @@ function calculateCreatorStats(entries: WatchHistoryEntry[]): CreatorStats[] {
   return sortedCreators
 }
 
-function calculateMostWatchedVideo(entries: WatchHistoryEntry[]): { title: string; count: number; channel: string } {
-  const videoCounts = entries.reduce((counts, entry) => {
-    const key = `${entry.video_title}|${entry.channel_name}`
+function calculateMostWatchedVideo(entries: WatchHistoryEntry[]): { title: string; count: number; channel: string; videoId: string }[] {
+  // Filter out entries with undefined titles
+  const validEntries = entries.filter(entry => entry.title && entry.title !== 'undefined')
+  
+  if (validEntries.length === 0) {
+    return [{
+      title: 'No valid videos found',
+      count: 0,
+      channel: 'Unknown Channel',
+      videoId: ''
+    }]
+  }
+
+  const videoCounts = validEntries.reduce((counts, entry) => {
+    const key = `${entry.title}|${entry.channel_name}|${entry.video_id}`
     counts[key] = (counts[key] || 0) + 1
     return counts
   }, {} as Record<string, number>)
 
-  const [mostWatchedKey, count] = Object.entries(videoCounts).reduce((max, [key, value]) => 
-    value > max[1] ? [key, value] : max, ['', 0]
-  )
+  // Sort by count and get top 5
+  const topVideos = Object.entries(videoCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([key, count]) => {
+      const [title, channel, videoId] = key.split('|')
+      return {
+        title: title || 'Unknown Video',
+        count,
+        channel: channel || 'Unknown Channel',
+        videoId: videoId || ''
+      }
+    })
 
-  const [title, channel] = mostWatchedKey.split('|')
-
-  return {
-    title: title || 'Unknown Video',
-    count,
-    channel: channel || 'Unknown Channel'
-  }
+  return topVideos
 }
 
 export async function fetchDefaultComparison(): Promise<YearComparison> {
