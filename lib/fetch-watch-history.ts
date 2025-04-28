@@ -1,5 +1,6 @@
 import { processAndStoreWatchHistoryByYear, isDataInIndexedDB } from "./indexeddb"
 import { WATCH_HISTORY_FILE } from './constants'
+import { useRouter } from 'next/navigation'
 
 async function fetchWatchHistory(accessToken: string) {
   try {
@@ -20,6 +21,12 @@ async function fetchWatchHistory(accessToken: string) {
         statusText: response.statusText,
         body: errorText
       });
+      
+      // If the error is due to no Takeout folder found
+      if (response.status === 404) {
+        throw new Error('NO_TAKEOUT_FOLDER');
+      }
+      
       throw new Error(`Failed to fetch watch history: ${response.status} - ${response.statusText}`);
     }
 
@@ -60,10 +67,18 @@ export async function fetchAndProcessWatchHistory(accessToken: string, userId: s
 
     // Fetch watch history from YouTube API
     console.log("🔄 Starting watch history fetch...");
-    const watchHistory = await fetchWatchHistory(accessToken);
-    
-    console.log("🔄 Processing and storing watch history data by year");
-    await processAndStoreWatchHistoryByYear(watchHistory);
+    try {
+      const watchHistory = await fetchWatchHistory(accessToken);
+      console.log("🔄 Processing and storing watch history data by year");
+      await processAndStoreWatchHistoryByYear(watchHistory);
+    } catch (error: any) {
+      if (error.message === 'NO_TAKEOUT_FOLDER') {
+        // Redirect to takeout instructions page
+        window.location.href = '/takeout-instructions';
+        return;
+      }
+      throw error;
+    }
     
     // Update watch history status
     console.log("🔄 Updating watch history status...");

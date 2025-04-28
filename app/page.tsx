@@ -30,12 +30,18 @@ export default function HomePage() {
             <Link href="#testimonials" className="text-sm font-medium hover:underline">
               Testimonials
             </Link>
+            <Link href="/takeout-instructions" className="text-sm font-medium hover:underline">
+              Takeout Instructions
+            </Link>
           </nav>
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <UserProfile />
             {!isLoggedIn ? (
-              <Button onClick={login}>Get Started</Button>
+              <Button onClick={(e) => {
+                e.preventDefault();
+                login();
+              }}>Get Started</Button>
             ) : (
               <Link href="/dashboard">
                 <Button>Dashboard</Button>
@@ -51,11 +57,10 @@ export default function HomePage() {
               Discover Your <span className="text-red-500">YouTube</span> Year in Review
             </h1>
             <p className="max-w-[42rem] leading-normal text-muted-foreground sm:text-xl sm:leading-8">
-              Explore your viewing habits, favorite creators, and most-watched categories in a beautiful, shareable
-              format.
+              Discover your YouTube addiction in a fun and (soon) shareable format. <span className="inline-block">(<a href="/terms-and-privacy" className="text-primary hover:underline">Privacy Policy</a> ensures we won't judge... much 😜)</span>
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/dashboard">
+              <Link href="#how-it-works">
                 <Button size="lg" className="gap-2">
                   See Your Wrapped <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -73,7 +78,7 @@ export default function HomePage() {
                 <div className="flex flex-col gap-2">
                   <h3 className="text-xl font-bold">Watch Time</h3>
                   <p className="text-3xl font-bold">247 hours</p>
-                  <p className="text-sm text-muted-foreground">That's 10.3 days of continuous watching!</p>
+                  <p className="text-sm text-muted-foreground">That's 10.3 days of continuous watching! <span className="inline-block">(No shame, we've all been there... right?)</span></p>
                   <div className="mt-4 h-32 w-full">
                     <div className="flex h-full items-end gap-2">
                       <div className="w-1/12 h-[20%] bg-red-200 rounded-t-md"></div>
@@ -193,7 +198,7 @@ export default function HomePage() {
           <div className="mx-auto flex max-w-[58rem] flex-col items-center justify-center gap-4 text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">How It Works</h2>
             <p className="max-w-[42rem] leading-normal text-muted-foreground sm:text-xl sm:leading-8">
-              Getting your YouTube Wrapped is simple and secure.
+              Some steps to get us going...
             </p>
           </div>
           <div className="mx-auto mt-16 grid max-w-5xl grid-cols-1 gap-8 md:grid-cols-3">
@@ -201,17 +206,20 @@ export default function HomePage() {
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-2xl font-bold">
                 1
               </div>
-              <h3 className="text-xl font-bold">Connect Your Account</h3>
-              <p className="text-muted-foreground">Securely connect your YouTube account with just a few clicks.</p>
+              <h3 className="text-xl font-bold">Export Your Data</h3>
+              <p className="text-muted-foreground">Get your YouTube watch history from Google Takeout. <span className="inline-block">(It's sooo easy, kinda!)</span></p>
+              <Link href="/takeout-instructions">
+                <Button variant="outline" className="mt-2">
+                  Learn How
+                </Button>
+              </Link>
             </div>
             <div className="flex flex-col items-center gap-4 rounded-lg border bg-background p-6 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-2xl font-bold">
                 2
               </div>
-              <h3 className="text-xl font-bold">We Analyze Your Data</h3>
-              <p className="text-muted-foreground">
-                Our algorithms analyze your watch history to generate personalized insights.
-              </p>
+              <h3 className="text-xl font-bold">Connect Your Account</h3>
+              <p className="text-muted-foreground">Securely connect your Google account to access your data. <span className="inline-block">(We pinky promise not to peek 👀)</span></p>
             </div>
             <div className="flex flex-col items-center gap-4 rounded-lg border bg-background p-6 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-2xl font-bold">
@@ -227,7 +235,8 @@ export default function HomePage() {
           <div className="mx-auto flex max-w-[58rem] flex-col items-center justify-center gap-4 text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">What Users Say</h2>
             <p className="max-w-[42rem] leading-normal text-muted-foreground sm:text-xl sm:leading-8">
-              Join thousands of YouTube enthusiasts who have discovered their viewing habits.
+              Join thousands (👀!!) who have discovered their viewing habits.
+              <span className="inline-block">(We didn't make these up...)</span>
             </p>
           </div>
           <div className="mx-auto mt-16 grid max-w-5xl grid-cols-1 gap-8 md:grid-cols-3">
@@ -246,7 +255,7 @@ export default function HomePage() {
               <div className="mt-auto flex items-center gap-4">
                 <div className="h-10 w-10 rounded-full bg-muted">
                   <Image
-                    src="/placeholder.svg?height=40&width=40"
+                    src="/images/testimonial-1.png?height=40&width=40"
                     alt="User avatar"
                     width={40}
                     height={40}
@@ -274,7 +283,7 @@ export default function HomePage() {
               <div className="mt-auto flex items-center gap-4">
                 <div className="h-10 w-10 rounded-full bg-muted">
                   <Image
-                    src="/placeholder.svg?height=40&width=40"
+                    src="/images/testimonial-2.png?height=40&width=40"
                     alt="User avatar"
                     width={40}
                     height={40}
@@ -302,7 +311,7 @@ export default function HomePage() {
               <div className="mt-auto flex items-center gap-4">
                 <div className="h-10 w-10 rounded-full bg-muted">
                   <Image
-                    src="/placeholder.svg?height=40&width=40"
+                    src="/images/testimonial-3.png?height=40&width=40"
                     alt="User avatar"
                     width={40}
                     height={40}
@@ -324,13 +333,22 @@ export default function HomePage() {
               Ready to Unwrap Your YouTube Year?
             </h2>
             <p className="max-w-[42rem] leading-normal text-muted-foreground sm:text-xl sm:leading-8">
-              Join thousands of users who have already discovered their YouTube Wrapped.
+           Don't miss out!
             </p>
-            <Link href="/dashboard">
-              <Button size="lg" className="mt-4">
-                Get Your YouTube Wrapped
+            {!isLoggedIn ? (
+              <Button size="lg" className="mt-4" onClick={(e) => {
+                e.preventDefault();
+                login();
+              }}>
+                Sign In to Get Started
               </Button>
-            </Link>
+            ) : (
+              <Link href="/dashboard">
+                <Button size="lg" className="mt-4">
+                  Get Your YouTube Wrapped
+                </Button>
+              </Link>
+            )}
           </div>
         </section>
       </main>
@@ -341,7 +359,7 @@ export default function HomePage() {
             <span className="font-semibold">YouTube Wrapped</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} YouTube Wrapped. All rights reserved.
+            &copy; {new Date().getFullYear()} YouTube Wrapped. All rights not reserved there are like 20 other sites with the same name. <span className="inline-block">(Not affiliated with YouTube at all!)</span>
           </p>
           <div className="flex gap-4">
             <Link href="#" className="text-sm text-muted-foreground hover:underline">

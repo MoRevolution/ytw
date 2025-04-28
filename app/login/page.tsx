@@ -62,6 +62,9 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 rounded-md bg-muted/60 p-3 text-sm text-muted-foreground text-center">
+            Make sure you have already completed the <a href="/takeout-instructions" className="text-primary hover:underline">takeout instructions</a> before signing in.
+          </div>
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Login</TabsTrigger>
@@ -79,7 +82,7 @@ export default function LoginPage() {
                   </div>
                 </div>
                 <p className="text-xs text-center text-muted-foreground">
-                  We use Google Sign In to securely access your YouTube watch history and provide personalized insights.
+                  We use Google Sign In to securely access your YouTube watch history from Google Drive. 
                 </p>
               </div>
             </TabsContent>
@@ -103,11 +106,7 @@ export default function LoginPage() {
                     </li>
                     <li className="flex items-start gap-2">
                       <div className="mt-1 h-1 w-1 rounded-full bg-primary"></div>
-                      <span>Read-only access to your YouTube watch history</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <div className="mt-1 h-1 w-1 rounded-full bg-primary"></div>
-                      <span>Google Drive access to store your Wrapped data</span>
+                      <span>Google Drive access to fetch your YouTube watch history</span>
                     </li>
                   </ul>
                 </div>
