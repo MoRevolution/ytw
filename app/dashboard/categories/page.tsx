@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { BarChart3, Clock, Film, Home, Users } from "lucide-react"
+import { BarChart3, Clock, Film, Home, Users, Play } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -398,23 +398,36 @@ export default function CategoriesPage() {
                   <CardContent>
                     <div className="space-y-4">
                       {category.topVideos?.map((video) => (
-                        <div key={video.videoId} className="flex items-start gap-3">
-                          <div className="relative h-[90px] w-[160px] shrink-0 overflow-hidden rounded-md bg-muted">
-                            <Image
-                              src={`https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`}
-                              alt={video.title}
-                              fill
-                              className="object-cover"
-                            />
+                        <a 
+                          key={video.videoId}
+                          href={`https://www.youtube.com/watch?v=${video.videoId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="relative h-[90px] w-[160px] shrink-0 overflow-hidden rounded-md bg-muted group">
+                              <Image
+                                src={`https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`}
+                                alt={video.title}
+                                fill
+                                className="object-cover transition-transform duration-200 group-hover:scale-105"
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <div className="bg-black/50 rounded-full p-2">
+                                  <Play className="h-6 w-6 text-white" />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium line-clamp-2 hover:text-primary transition-colors">{video.title}</p>
+                              <p className="text-xs text-muted-foreground">{video.channelTitle}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Watched {video.watchCount} {video.watchCount === 1 ? 'time' : 'times'}
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium line-clamp-2">{video.title}</p>
-                            <p className="text-xs text-muted-foreground">{video.channelTitle}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Watched {video.watchCount} {video.watchCount === 1 ? 'time' : 'times'}
-                            </p>
-                          </div>
-                        </div>
+                        </a>
                       ))}
                     </div>
                   </CardContent>
