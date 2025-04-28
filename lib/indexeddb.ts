@@ -3,39 +3,61 @@ import { getVideosMetadata  } from "./youtube-metadata"
 import { DB_NAME, FILES_STORE, WATCH_HISTORY_FILE } from './constants'
 
 export async function isDataInIndexedDB(fileId: string): Promise<boolean> {
-  const db = await openDB(DB_NAME, 1, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(FILES_STORE)) {
-        db.createObjectStore(FILES_STORE, { keyPath: "fileName" })
-      }
-    },
-  })
+  try {
+    const db = await openDB(DB_NAME, 1, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains(FILES_STORE)) {
+          db.createObjectStore(FILES_STORE, { keyPath: "fileName" })
+        }
+      },
+    })
 
-  const tx = db.transaction(FILES_STORE, "readonly")
-  const store = tx.objectStore(FILES_STORE)
-  const existingFile = await store.get(fileId)
+    // Check if the object store exists
+    if (!db.objectStoreNames.contains(FILES_STORE)) {
+      console.log("❌ Object store does not exist")
+      return false
+    }
 
-  return !!existingFile
+    const tx = db.transaction(FILES_STORE, "readonly")
+    const store = tx.objectStore(FILES_STORE)
+    const existingFile = await store.get(fileId)
+
+    return !!existingFile
+  } catch (error) {
+    console.error("❌ Error checking IndexedDB:", error)
+    return false
+  }
 }
 
 export async function storeDataInIndexedDB(data: { [key: string]: string }) {
-  const db = await openDB(DB_NAME, 1, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(FILES_STORE)) {
-        db.createObjectStore(FILES_STORE, { keyPath: "fileName" })
-      }
-    },
-  })
+  try {
+    const db = await openDB(DB_NAME, 1, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains(FILES_STORE)) {
+          db.createObjectStore(FILES_STORE, { keyPath: "fileName" })
+        }
+      },
+    })
 
-  const tx = db.transaction(FILES_STORE, "readwrite")
-  const store = tx.objectStore(FILES_STORE)
+    // Check if the object store exists
+    if (!db.objectStoreNames.contains(FILES_STORE)) {
+      console.error("❌ Object store does not exist")
+      throw new Error("Object store does not exist")
+    }
 
-  for (const [fileName, content] of Object.entries(data)) {
-    await store.put({ fileName, content })
+    const tx = db.transaction(FILES_STORE, "readwrite")
+    const store = tx.objectStore(FILES_STORE)
+
+    for (const [fileName, content] of Object.entries(data)) {
+      await store.put({ fileName, content })
+    }
+
+    await tx.done
+    console.log("✅ Data stored in IndexedDB successfully")
+  } catch (error) {
+    console.error("❌ Error storing data in IndexedDB:", error)
+    throw error // Re-throw to let the caller handle it
   }
-
-  await tx.done
-  console.log("Data stored in IndexedDB successfully")
 }
 
 /**
