@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { BarChart3, Clock, Film, Home, Share2, Star, Users, Play } from "lucide-react"
+import { BarChart3, Clock, Film, Home, Share2, Star, Users, Play, GitCompare } from "lucide-react"
 import { Bar } from "react-chartjs-2"
 import {
   Chart as ChartJS,
@@ -32,7 +32,9 @@ import { ShareStats } from "@/components/share-stats"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { fetchDefaultComparison, DashboardStats, CategoryStats } from "@/lib/fetch-dashboard-data"
-import { WordCloud } from "@/components/word-cloud"
+import { getChannelThumbnailCached } from "@/lib/youtube-api"
+import { WordCloudComponent } from "@/components/word-cloud"
+import { CreatorCard } from "@/components/creator-card"
 
 // Mock stats for sample user
 const mockStats = {
@@ -126,62 +128,12 @@ const mockStats = {
   }
 }
 
-interface CreatorCardProps {
-  creator: {
-    name: string
-    watchTime: number
-    videoCount: number
-  }
-  rank: number
-  comparisonCreator?: {
-    name: string
-    watchTime: number
-    videoCount: number
-  }
-  maxWatchTime: number
-}
-
-function CreatorCard({ creator, rank, comparisonCreator, maxWatchTime }: CreatorCardProps) {
-  const progressValue = (creator.watchTime / maxWatchTime) * 100
-
-  return (
-    <div className="flex items-center gap-4">
-      <div className="h-10 w-10 rounded-full bg-muted">
-        <Image
-          src="/placeholder.svg?height=40&width=40"
-          alt="Creator avatar"
-          width={40}
-          height={40}
-          className="rounded-full"
-        />
-      </div>
-      <div className="flex-1">
-        <div className="flex items-center justify-between">
-          <p className="font-medium">{creator.name}</p>
-          <div className="flex items-center gap-1">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">{creator.watchTime.toFixed(1)} hours</span>
-          </div>
-        </div>
-        <Progress value={progressValue} className="mt-2 h-2" />
-        {comparisonCreator && (
-          <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-            <span>{comparisonCreator.watchTime.toFixed(1)} hours last year</span>
-            <span className={creator.watchTime > comparisonCreator.watchTime ? "text-green-500" : "text-red-500"}>
-              {Math.round(((creator.watchTime - comparisonCreator.watchTime) / comparisonCreator.watchTime) * 100)}%
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 export default function DashboardPage() {
   const { isLoggedIn, isSampleUser } = useAuth()
   const router = useRouter()
   const [stats, setStats] = useState<{ primaryYear: DashboardStats; comparisonYear?: DashboardStats } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showComparison, setShowComparison] = useState(false)
 
   // Redirect if not logged in
   useEffect(() => {
@@ -391,6 +343,60 @@ export default function DashboardPage() {
                     </CardContent>
                   </Card>
                 </div>
+                
+                <div className="mt-8">
+                  {/* <h2 className="mb-4 text-2xl font-bold tracking-tight">Your {stats.primaryYear.year} Highlights</h2> */}
+                  <div className="grid gap-4 w-full mx-auto">
+                    <Card className="w-full">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">Your faves</CardTitle>
+                        <div className="py-1"></div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex gap-4 overflow-x-auto pb-4">
+                          {stats?.primaryYear.mostWatchedVideos?.map((video) => (
+                            <a 
+                              key={video.videoId}
+                              href={`https://www.youtube.com/watch?v=${video.videoId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block min-w-[240px]"
+                            >
+                              <div className="aspect-video overflow-hidden rounded-md bg-muted group relative">
+                                <Image
+                                  src={`https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`}
+                                  alt="Video thumbnail"
+                                  width={240}
+                                  height={135}
+                                  className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.src = `/placeholder.svg?height=135&width=240`;
+                                  }}
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                  <div className="bg-black/50 rounded-full p-2">
+                                    <Play className="h-6 w-6 text-white" />
+                                  </div>
+                                </div>
+                              </div>
+                              <h3 className="mt-2 text-sm font-medium line-clamp-2 hover:text-primary transition-colors">
+                                {video.title}
+                              </h3>
+                              <p className="text-xs text-muted-foreground">{video.channel}</p>
+                              <div className="mt-1 flex items-center gap-2">
+                                <Play className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">
+                                  Watched {video.count} times
+                                </span>
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
 
                 <div className="mt-8 grid gap-6 md:grid-cols-2">
                   <Card>
@@ -454,8 +460,23 @@ export default function DashboardPage() {
                 <div className="mt-8">
                   <Card>
                     <CardHeader>
-                      <CardTitle>Monthly Watch Time</CardTitle>
-                      <CardDescription>How your viewing changed throughout the year</CardDescription>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle>Monthly Watch Time</CardTitle>
+                          <CardDescription>How your viewing changed throughout the year</CardDescription>
+                        </div>
+                        {stats?.comparisonYear && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowComparison(!showComparison)}
+                            className="gap-2"
+                          >
+                            <GitCompare className="h-4 w-4" />
+                            {showComparison ? 'Hide Comparison' : 'Show Comparison'}
+                          </Button>
+                        )}
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-2 gap-4">
@@ -467,9 +488,19 @@ export default function DashboardPage() {
                                 labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
                                 datasets: [
                                   {
-                                    label: 'Hours',
+                                    label: `${stats?.comparisonYear?.year || 'Previous Year'} Hours`,
+                                    data: stats?.comparisonYear?.monthlyWatchTime || Array(12).fill(0),
+                                    backgroundColor: 'rgba(156, 163, 175, 0.3)',
+                                    borderColor: 'rgb(156, 163, 175)',
+                                    borderWidth: 1,
+                                    borderRadius: 8,
+                                    borderSkipped: false,
+                                    hidden: !showComparison,
+                                  },
+                                  {
+                                    label: `${stats?.primaryYear.year} Hours`,
                                     data: stats?.primaryYear.monthlyWatchTime || Array(12).fill(0),
-                                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
                                     borderColor: 'rgb(59, 130, 246)',
                                     borderWidth: 1,
                                     borderRadius: 8,
@@ -489,6 +520,11 @@ export default function DashboardPage() {
                                     },
                                   },
                                 },
+                                plugins: {
+                                  legend: {
+                                    position: 'top' as const,
+                                  },
+                                },
                               }}
                             />
                           </div>
@@ -501,10 +537,19 @@ export default function DashboardPage() {
                                 labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
                                 datasets: [
                                   {
-                                    label: 'Videos',
-                                    // data: [120, 150, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360],
+                                    label: `${stats?.comparisonYear?.year || 'Previous Year'} Videos`,
+                                    data: stats?.comparisonYear?.monthlyVideoCounts || Array(12).fill(0),
+                                    backgroundColor: 'rgba(156, 163, 175, 0.3)',
+                                    borderColor: 'rgb(156, 163, 175)',
+                                    borderWidth: 1,
+                                    borderRadius: 8,
+                                    borderSkipped: false,
+                                    hidden: !showComparison,
+                                  },
+                                  {
+                                    label: `${stats?.primaryYear.year} Videos`,
                                     data: stats?.primaryYear.monthlyVideoCounts || Array(12).fill(0),
-                                    backgroundColor: 'rgba(16, 185, 129, 0.5)',
+                                    backgroundColor: 'rgba(16, 185, 129, 0.7)',
                                     borderColor: 'rgb(16, 185, 129)',
                                     borderWidth: 1,
                                     borderRadius: 8,
@@ -524,6 +569,11 @@ export default function DashboardPage() {
                                     },
                                   },
                                 },
+                                plugins: {
+                                  legend: {
+                                    position: 'top' as const,
+                                  },
+                                },
                               }}
                             />
                           </div>
@@ -540,93 +590,17 @@ export default function DashboardPage() {
                       <CardDescription>Most common tags in your watched videos</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <WordCloud
+                      <WordCloudComponent
                         tags={stats?.primaryYear?.tags || []}
                       />
                     </CardContent>
                   </Card>
                 </div>
 
-                <div className="mt-8">
-                  <h2 className="mb-4 text-2xl font-bold tracking-tight">Your {stats.primaryYear.year} Highlights</h2>
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-lg">Most Watched Video</CardTitle>
-                        <CardDescription>Your most rewatched video of the year</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="aspect-video overflow-hidden rounded-md bg-muted">
-                          <Image
-                            src="/placeholder.svg?height=180&width=320"
-                            alt="Video thumbnail"
-                            width={320}
-                            height={180}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                        <h3 className="mt-2 font-medium line-clamp-2">{stats?.primaryYear.mostWatchedVideo.title}</h3>
-                        <p className="text-sm text-muted-foreground">{stats?.primaryYear.mostWatchedVideo.channel}</p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <Play className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">
-                            Watched {stats?.primaryYear.mostWatchedVideo.count} times
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-lg">Longest Watching Session</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-3xl font-bold">5.2</div>
-                        <p className="text-sm text-muted-foreground">hours straight</p>
-                        <p className="mt-2 text-sm">
-                          On July 15, {stats.primaryYear.year}, you had your longest YouTube marathon watching gaming content.
-                        </p>
-                        <div className="mt-4 rounded-md bg-muted p-2 text-sm">
-                          <p className="font-medium">Top video from this session:</p>
-                          <p className="line-clamp-2">Minecraft Hardcore Survival: Day 1000</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-lg">Most Active Time</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-3xl font-bold">9PM - 11PM</div>
-                        <p className="text-sm text-muted-foreground">evening viewer</p>
-                        <div className="mt-4 h-16">
-                          <div className="flex h-full items-end gap-1">
-                            {[
-                              10, 5, 8, 15, 25, 30, 45, 60, 75, 90, 85, 70, 60, 50, 65, 80, 90, 95, 100, 90, 75, 60, 40, 20,
-                            ].map((value, index) => (
-                              <div
-                                key={index}
-                                className="flex-1 rounded-t bg-gradient-to-t from-purple-600 to-purple-400"
-                                style={{ height: `${value}%` }}
-                              ></div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                          <span>12AM</span>
-                          <span>6AM</span>
-                          <span>12PM</span>
-                          <span>6PM</span>
-                          <span>12AM</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-                
                 <div className="mt-12 text-center">
                   <ShareStats
                     stats={{
-                      watchTime: stats?.primaryYear.watchTime || 0,
+                      watchTime: parseFloat((stats?.primaryYear.watchTime || 0).toFixed(1)),
                       videosWatched: stats?.primaryYear.videosWatched || 0,
                       topCategory: stats?.primaryYear.topCategory || "Unknown",
                       topCreator: stats?.primaryYear.topCreator || "Unknown"
