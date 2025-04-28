@@ -211,14 +211,14 @@ export default function ProfilePage() {
                         </>
                       )}
                     </Button>
-                    <Button 
+                    {/* <Button 
                       variant="outline" 
                       className="w-full" 
                       onClick={handleExportData}
                     >
                       <Download className="mr-2 h-4 w-4" />
                       Export Data
-                    </Button>
+                    </Button> */}
                     <Button variant="destructive" className="w-full" onClick={logout}>
                       Log Out
                     </Button>

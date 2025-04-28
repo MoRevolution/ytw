@@ -47,11 +47,11 @@ const mockStats = {
     year: 2023,
     isComplete: true,
     topCreators: [
-      { name: "MKBHD", watchTime: 42.3, videoCount: 85 },
-      { name: "Linus Tech Tips", watchTime: 38.7, videoCount: 78 },
-      { name: "Veritasium", watchTime: 29.5, videoCount: 60 },
-      { name: "Fireship", watchTime: 24.8, videoCount: 50 },
-      { name: "The Verge", watchTime: 20.1, videoCount: 45 }
+      { name: "MKBHD", watchTime: 42.3, videoCount: 85, channelId: "UCBJycsmduvYEL83R_U4JriQ" },
+      { name: "Linus Tech Tips", watchTime: 38.7, videoCount: 78, channelId: "UCXuqSBlHAE6Xw-yeJA0Tunw" },
+      { name: "Veritasium", watchTime: 29.5, videoCount: 60, channelId: "UCHnyfMqiRRG1u-2MsSQLbXA" },
+      { name: "Fireship", watchTime: 24.8, videoCount: 50, channelId: "UCsBjURrPoezykLs9EqgamOA" },
+      { name: "The Verge", watchTime: 20.1, videoCount: 45, channelId: "UCddiUEpeqJcYeBxXxIVlKCA" }
     ],
     monthlyVideoCounts: [120, 150, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360],
     monthlyWatchTime: [12.5, 15.2, 18.7, 20.3, 22.1, 24.5, 26.8, 28.9, 30.2, 32.4, 34.7, 36.9],
@@ -62,10 +62,65 @@ const mockStats = {
       { name: "Education", watchTime: 24.0, percentage: 12.0 },
       { name: "Entertainment", watchTime: 20.0, percentage: 10.0 }
     ],
-    mostWatchedVideo: {
-      title: "The Ultimate Guide to Next.js 13 App Router",
-      channel: "Fireship",
-      count: 14
+    mostWatchedVideos: [
+      {
+        title: "These new computers are getting creepy… Copilot+ PC first look",
+        channel: "Fireship",
+        count: 12,
+        videoId: ""
+      },
+      {
+        title: "iPhone 16/16 Pro Review: Times Have Changed!",
+        channel: "MKBHD",
+        count: 7,
+        videoId: "MRtg6A1f2Ko"
+      },
+      {
+        title: "What 'Follow Your Dreams' Misses | Harvey Mudd Commencement Speech 2024",
+        channel: "3blue1brown",
+        count: 5,
+        videoId: "W3I3kAg2J7w"
+      },
+      {
+        title: "Pro Climber pretends to be Old Man and tries all the hardest routes",
+        channel: "Magnus Midtbø",
+        count: 4,
+        videoId: "I0ukVL0H4fs"
+      },
+      {
+        title: "Turning children's glue into drinkable alcohol",
+        channel: "NileRed",
+        count: 3,
+        videoId: "QzP3vx8XadU"
+      }
+    ],
+    longestSession: {
+      duration: 4.5,
+      date: "2023-07-15T14:30:00Z",
+      category: "Gaming",
+      videos: [
+        {
+          title: "Minecraft Speedrun World Record",
+          channel: "Dream",
+          videoId: "dQw4w9WgXcQ",
+          likeCount: 1500000,
+          duration: "1:23:45"
+        },
+        {
+          title: "Minecraft Building Tips and Tricks",
+          channel: "Grian",
+          videoId: "dQw4w9WgXcQ",
+          likeCount: 800000,
+          duration: "45:30"
+        },
+        {
+          title: "Minecraft Redstone Tutorial",
+          channel: "Mumbo Jumbo",
+          videoId: "dQw4w9WgXcQ",
+          likeCount: 600000,
+          duration: "1:15:20"
+        }
+      ]
     },
     tags: [
       "gaming",
@@ -93,11 +148,11 @@ const mockStats = {
     year: 2022,
     isComplete: true,
     topCreators: [
-      { name: "Linus Tech Tips", watchTime: 45.2, videoCount: 90 },
-      { name: "MKBHD", watchTime: 35.8, videoCount: 70 },
-      { name: "The Verge", watchTime: 28.3, videoCount: 55 },
-      { name: "Veritasium", watchTime: 25.6, videoCount: 50 },
-      { name: "Fireship", watchTime: 22.4, videoCount: 45 }
+      { name: "Linus Tech Tips", watchTime: 45.2, videoCount: 90, channelId: "UCXuqSBlHAE6Xw-yeJA0Tunw" },
+      { name: "MKBHD", watchTime: 35.8, videoCount: 70, channelId: "UCBJycsmduvYEL83R_U4JriQ" },
+      { name: "The Verge", watchTime: 28.3, videoCount: 55, channelId: "UCddiUEpeqJcYeBxXxIVlKCA" },
+      { name: "Veritasium", watchTime: 25.6, videoCount: 50, channelId: "UCHnyfMqiRRG1u-2MsSQLbXA" },
+      { name: "Fireship", watchTime: 22.4, videoCount: 45, channelId: "UCsBjURrPoezykLs9EqgamOA" }
     ],
     monthlyVideoCounts: [100, 130, 160, 180, 200, 220, 240, 260, 280, 300, 320, 340],
     monthlyWatchTime: [10.2, 13.5, 16.8, 18.2, 20.1, 22.4, 24.7, 26.8, 28.9, 30.2, 32.4, 34.6],
@@ -108,11 +163,38 @@ const mockStats = {
       { name: "Education", watchTime: 31.5, percentage: 15.0 },
       { name: "Entertainment", watchTime: 25.2, percentage: 12.0 }
     ],
-    mostWatchedVideo: {
-      title: "The Ultimate Guide to Next.js 13 App Router",
-      channel: "Fireship",
-      count: 12
-    },
+    mostWatchedVideos: [
+      {
+        title: "These new computers are getting creepy… Copilot+ PC first look",
+        channel: "Fireship",
+        count: 12,
+        videoId: "hlwcZpEx2IY"
+      },
+      {
+        title: "iPhone 16/16 Pro Review: Times Have Changed!",
+        channel: "MKBHD",
+        count: 7,
+        videoId: "MRtg6A1f2Ko"
+      },
+      {
+        title: "What 'Follow Your Dreams' Misses | Harvey Mudd Commencement Speech 2024",
+        channel: "3blue1brown",
+        count: 5,
+        videoId: "W3I3kAg2J7w"
+      },
+      {
+        title: "Pro Climber pretends to be Old Man and tries all the hardest routes",
+        channel: "Magnus Midtbø",
+        count: 4,
+        videoId: "I0ukVL0H4fs"
+      },
+      {
+        title: "Turning children's glue into drinkable alcohol",
+        channel: "NileRed",
+        count: 3,
+        videoId: "QzP3vx8XadU"
+      }
+    ],
     tags: [
       "tech",
       "gaming",
@@ -135,12 +217,12 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showComparison, setShowComparison] = useState(false)
 
-  // Redirect if not logged in
+  // Redirect if not logged in, but only after initial load
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn && !isLoading) {
       router.push("/")
     }
-  }, [isLoggedIn, router])
+  }, [isLoggedIn, router, isLoading])
 
   // Fetch real data if not sample user, otherwise use mock data
   useEffect(() => {
@@ -211,11 +293,13 @@ export default function DashboardPage() {
         }
         fetchData()
       }
+    } else {
+      setIsLoading(false)
     }
   }, [isLoggedIn, isSampleUser])
 
-  // If not logged in, don't render the page content
-  if (!isLoggedIn) {
+  // If not logged in and not loading, don't render the page content
+  if (!isLoggedIn && !isLoading) {
     return null
   }
 
@@ -353,25 +437,25 @@ export default function DashboardPage() {
                         <div className="py-1"></div>
                       </CardHeader>
                       <CardContent>
-                        <div className="flex gap-4 overflow-x-auto pb-4">
+                        <div className="flex gap-4 overflow-x-auto pb-4 px-4">
                           {stats?.primaryYear.mostWatchedVideos?.map((video) => (
                             <a 
                               key={video.videoId}
                               href={`https://www.youtube.com/watch?v=${video.videoId}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="block min-w-[240px]"
+                              className="block min-w-[200px]"
                             >
                               <div className="aspect-video overflow-hidden rounded-md bg-muted group relative">
                                 <Image
                                   src={`https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`}
                                   alt="Video thumbnail"
-                                  width={240}
-                                  height={135}
+                                  width={200}
+                                  height={112}
                                   className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
                                   onError={(e) => {
                                     const target = e.target as HTMLImageElement;
-                                    target.src = `/placeholder.svg?height=135&width=240`;
+                                    target.src = `/placeholder.svg?height=112&width=200`;
                                   }}
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -406,7 +490,7 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {stats?.primaryYear?.categoryStats?.slice(0, 5).map((category: CategoryStats, index: number) => (
+                        {stats?.primaryYear?.categoryStats?.slice(0, 6).map((category: CategoryStats, index: number) => (
                           <div key={category.name} className="space-y-2">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
@@ -583,7 +667,7 @@ export default function DashboardPage() {
                   </Card>
                 </div>
 
-                <div className="mt-8">
+                {/* <div className="mt-8">
                   <Card>
                     <CardHeader>
                       <CardTitle>Video Tags</CardTitle>
@@ -595,7 +679,7 @@ export default function DashboardPage() {
                       />
                     </CardContent>
                   </Card>
-                </div>
+                </div> */}
 
                 <div className="mt-12 text-center">
                   <ShareStats
