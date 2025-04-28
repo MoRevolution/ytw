@@ -72,9 +72,12 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
         } catch (error: any) {
           console.error("❌ Error:", error.message);
           toast({
-            title: "Warning",
+            title: "Error",
             description: "Could not fetch watch history. Please try again later.",
+            variant: "destructive"
           });
+          setIsLoading(false);
+          return; // Don't proceed to dashboard if data fetch fails
         }
       } else {
         console.log("📦 Using existing watch history data from IndexedDB");
