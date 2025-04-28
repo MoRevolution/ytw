@@ -104,10 +104,59 @@ export async function getVideosMetadata(
   try {
     // Fetch all video metadata at once using MGET
     console.log(`🔄 Fetching metadata for ${videoIds.length} videos from Redis...`);
-    const cachedData = await redis.mget(...videoIds);
-    
+    const CHUNK_SIZE = 500;
+    const CONCURRENT_CHUNKS = 5; // Number of chunks to process at once
+    const chunks = [];
+    const allCachedData: (string | null)[] = [];
+
+    // Split videoIds into chunks of 1000
+    for (let i = 0; i < videoIds.length; i += CHUNK_SIZE) {
+      chunks.push(videoIds.slice(i, i + CHUNK_SIZE));
+    }
+
+    console.log(`📦 Processing ${chunks.length} chunks of ${CHUNK_SIZE} videos each (${CONCURRENT_CHUNKS} concurrent)...`);
+
+    // Process chunks in groups with controlled concurrency
+    for (let i = 0; i < chunks.length; i += CONCURRENT_CHUNKS) {
+      const currentChunks = chunks.slice(i, i + CONCURRENT_CHUNKS);
+      console.log(`🔄 Processing chunks ${i + 1}-${Math.min(i + CONCURRENT_CHUNKS, chunks.length)}/${chunks.length}...`);
+
+      try {
+        // Execute multiple MGET operations concurrently
+        const chunkResults = await Promise.all(
+          currentChunks.map(async (chunk, chunkIndex) => {
+            const chunkData = await redis.mget(...chunk) as (string | null)[];
+            if (!chunkData) {
+              throw new Error(`Redis MGET returned no data for chunk ${i + chunkIndex + 1}`);
+            }
+            return chunkData;
+          })
+        );
+
+        // Combine results
+        chunkResults.forEach(result => {
+          allCachedData.push(...result);
+        });
+
+        // Add delay between groups of chunks except for the last group
+        if (i + CONCURRENT_CHUNKS < chunks.length) {
+          console.log(`⏳ Waiting 1 second before next group of chunks...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      } catch (error: any) {
+        console.error("❌ Redis MGET Error:", {
+          error: error.message,
+          stack: error.stack,
+          chunkGroup: `${i + 1}-${Math.min(i + CONCURRENT_CHUNKS, chunks.length)}`,
+          totalChunks: chunks.length,
+          videoCount: currentChunks.reduce((sum, chunk) => sum + chunk.length, 0)
+        });
+        throw new Error("Failed to retrieve data from Redis: " + error.message);
+      }
+    }
+
     // Process the results
-    cachedData.forEach((data, index) => {
+    allCachedData.forEach((data, index) => {
       const videoId = videoIds[index];
       
       if (!data) {
@@ -142,20 +191,19 @@ export async function getVideosMetadata(
     if (missingIds.length > 0) {
       // YouTube API has a limit of 50 videos per request
       const BATCH_SIZE = 50;
+      const CONCURRENCY_LIMIT = 5; 
       const batches = [];
       const cacheEntries: Record<string, string> = {};
       
-      // Split missingIds into batches of 50
       for (let i = 0; i < missingIds.length; i += BATCH_SIZE) {
         batches.push(missingIds.slice(i, i + BATCH_SIZE));
       }
 
-      console.log(`🔄 Fetching ${batches.length} batches of videos from YouTube API...`);
+      console.log(`🔄 Fetching ${batches.length} batches of videos from YouTube API (${CONCURRENCY_LIMIT} concurrent)...`);
 
-      // Process each batch with a delay to avoid rate limiting
-      for (let i = 0; i < batches.length; i++) {
-        const batch = batches[i];
-        console.log(`📦 Processing batch ${i + 1}/${batches.length} (${batch.length} videos)`);
+      // Process batches with controlled concurrency
+      const processBatch = async (batch: string[], index: number) => {
+        console.log(`📦 Processing batch ${index + 1}/${batches.length} (${batch.length} videos)`);
 
         try {
           const response = await fetch(
@@ -181,19 +229,27 @@ export async function getVideosMetadata(
 
           if (!response.ok) {
             const errorText = await response.text();
-            console.error("❌ YouTube API Error:", {
+            const errorDetails = {
               status: response.status,
               statusText: response.statusText,
-              body: errorText
-            });
-            throw new Error(`YouTube API error: ${response.status} - ${response.statusText}`);
+              body: errorText,
+              batchIndex: index + 1,
+              totalBatches: batches.length,
+              videoIds: batch
+            };
+            console.error("❌ YouTube API Error:", errorDetails);
+            throw new Error(`YouTube API error: ${response.status} - ${response.statusText}\nResponse: ${errorText}`);
           }
 
           const data = await response.json();
           
           if (!data.items) {
-            console.warn("⚠️ No items returned from YouTube API");
-            continue;
+            console.warn("⚠️ No items returned from YouTube API for batch:", {
+              batchIndex: index + 1,
+              totalBatches: batches.length,
+              videoIds: batch
+            });
+            return;
           }
 
           // Process each video in the batch
@@ -220,22 +276,51 @@ export async function getVideosMetadata(
             const encodedEntry = Buffer.from(compressedEntry).toString("base64");
             cacheEntries[video.id] = encodedEntry;
           }
-
-          // Add a delay between batches to avoid rate limiting
-          if (i < batches.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
-          }
         } catch (error: any) {
-          console.error(`❌ Error processing batch ${i + 1}:`, error.message);
-          // Continue with next batch even if one fails
-          continue;
+          console.error(`❌ Error processing batch ${index + 1}:`, error.message);
+        }
+      };
+
+      // Process batches with controlled concurrency
+      for (let i = 0; i < batches.length; i += CONCURRENCY_LIMIT) {
+        const currentBatches = batches.slice(i, i + CONCURRENCY_LIMIT);
+        await Promise.all(currentBatches.map((batch, index) => processBatch(batch, i + index)));
+        
+        // Add a small delay between groups of concurrent requests
+        if (i + CONCURRENCY_LIMIT < batches.length) {
+          await new Promise(resolve => setTimeout(resolve, 500)); // 0.5 second delay between groups
         }
       }
 
       // Cache all entries in Redis at once using MSET
       if (Object.keys(cacheEntries).length > 0) {
         console.log(`🔄 Caching ${Object.keys(cacheEntries).length} videos in Redis...`);
-        await redis.mset(cacheEntries);
+        
+        const CACHE_CHUNK_SIZE = 500;
+        const entries = Object.entries(cacheEntries);
+        const chunks = [];
+        
+        // Split entries into chunks of 10,000
+        for (let i = 0; i < entries.length; i += CACHE_CHUNK_SIZE) {
+          chunks.push(entries.slice(i, i + CACHE_CHUNK_SIZE));
+        }
+
+        console.log(`📦 Caching in ${chunks.length} chunks of up to ${CACHE_CHUNK_SIZE} entries each...`);
+
+        // Process each chunk with a delay
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i];
+          const chunkObject = Object.fromEntries(chunk);
+          
+          console.log(`🔄 Caching chunk ${i + 1}/${chunks.length} (${chunk.length} entries)...`);
+          await redis.mset(chunkObject);
+          
+          // Add delay between chunks except for the last one
+          if (i < chunks.length - 1) {
+            console.log(`⏳ Waiting 2 seconds before next cache chunk...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        }
       }
     }
 
