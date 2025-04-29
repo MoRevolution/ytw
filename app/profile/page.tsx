@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowLeft, Calendar, Clock, Film, Mail, MapPin, RefreshCw, Download } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, Film, Mail, MapPin, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -14,9 +14,6 @@ import { useAuth } from "@/contexts/auth-context"
 import { toast } from "@/hooks/use-toast"
 import { auth } from "@/lib/firebase"
 import { fetchAndProcessWatchHistory } from "@/lib/fetch-watch-history"
-import { DB_NAME, FILES_STORE } from "@/lib/constants"
-import Dexie from "dexie"
-import { exportDB } from "dexie-export-import"
 
 export default function ProfilePage() {
   const { isLoggedIn, user, logout } = useAuth()
@@ -80,51 +77,6 @@ export default function ProfilePage() {
       });
     } finally {
       setIsRefreshing(false)
-    }
-  }
-
-  const handleExportData = async () => {
-    try {
-      // Initialize Dexie
-      const db = new Dexie(DB_NAME);
-      
-      // Get the current version and tables
-      const { verno, tables } = await db.open();
-      db.close();
-      
-      // Reopen with the correct schema
-      const schema: { [key: string]: string } = {};
-      tables.forEach(table => {
-        const keyPath = table.schema.primKey.keyPath;
-        schema[table.name] = Array.isArray(keyPath) ? keyPath.join(',') : keyPath || "";
-      });
-      
-      db.version(verno).stores(schema);
-      
-      // Export the database
-      const blob = await exportDB(db);
-      
-      // Create download link
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `youtube-wrapped-backup-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      toast({
-        title: "Data exported",
-        description: "Your YouTube watch history has been successfully exported.",
-      });
-    } catch (error: any) {
-      console.error("❌ Error:", error.message);
-      toast({
-        title: "Error",
-        description: "Could not export watch history. Please try again later.",
-        variant: "destructive",
-      });
     }
   }
 
@@ -211,14 +163,6 @@ export default function ProfilePage() {
                         </>
                       )}
                     </Button>
-                    {/* <Button 
-                      variant="outline" 
-                      className="w-full" 
-                      onClick={handleExportData}
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Export Data
-                    </Button> */}
                     <Button variant="destructive" className="w-full" onClick={logout}>
                       Log Out
                     </Button>
