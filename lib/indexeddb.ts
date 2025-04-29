@@ -1,27 +1,44 @@
-import { openDB } from "idb"
+import { openDB, IDBPDatabase } from "idb"
 import { getVideosMetadata  } from "./youtube-metadata"
 import { DB_NAME, FILES_STORE, WATCH_HISTORY_FILE } from './constants'
 
-export async function isDataInIndexedDB(fileId: string): Promise<boolean> {
+// Current database version - increment this when schema changes
+const DB_VERSION = 1
+
+/**
+ * Initializes the database and ensures the object store exists
+ * @returns A promise that resolves to the database instance
+ */
+async function initDB(): Promise<IDBPDatabase> {
   try {
-    const db = await openDB(DB_NAME, 1, {
+    const db = await openDB(DB_NAME, DB_VERSION, {
       upgrade(db) {
+        // Create object store if it doesn't exist
         if (!db.objectStoreNames.contains(FILES_STORE)) {
+          console.log(`🔄 Creating object store: ${FILES_STORE}`)
           db.createObjectStore(FILES_STORE, { keyPath: "fileName" })
         }
       },
     })
 
-    // Check if the object store exists
+    // Verify the store exists
     if (!db.objectStoreNames.contains(FILES_STORE)) {
-      console.log("❌ Object store does not exist")
-      return false
+      throw new Error(`Failed to create object store: ${FILES_STORE}`)
     }
 
+    return db
+  } catch (error) {
+    console.error("❌ Database initialization failed:", error)
+    throw error
+  }
+}
+
+export async function isDataInIndexedDB(fileId: string): Promise<boolean> {
+  try {
+    const db = await initDB()
     const tx = db.transaction(FILES_STORE, "readonly")
     const store = tx.objectStore(FILES_STORE)
     const existingFile = await store.get(fileId)
-
     return !!existingFile
   } catch (error) {
     console.error("❌ Error checking IndexedDB:", error)
@@ -30,33 +47,30 @@ export async function isDataInIndexedDB(fileId: string): Promise<boolean> {
 }
 
 export async function storeDataInIndexedDB(data: { [key: string]: string }) {
+  let db: IDBPDatabase | null = null
+  
   try {
-    const db = await openDB(DB_NAME, 1, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(FILES_STORE)) {
-          db.createObjectStore(FILES_STORE, { keyPath: "fileName" })
-        }
-      },
-    })
-
-    // Check if the object store exists
-    if (!db.objectStoreNames.contains(FILES_STORE)) {
-      console.error("❌ Object store does not exist")
-      throw new Error("Object store does not exist")
-    }
-
+    db = await initDB()
     const tx = db.transaction(FILES_STORE, "readwrite")
     const store = tx.objectStore(FILES_STORE)
 
-    for (const [fileName, content] of Object.entries(data)) {
-      await store.put({ fileName, content })
-    }
-
+    // Store all entries in a single transaction
+    const putPromises = Object.entries(data).map(([fileName, content]) => 
+      store.put({ fileName, content })
+    )
+    
+    await Promise.all(putPromises)
     await tx.done
-    console.log("✅ Data stored in IndexedDB successfully")
+    
+    console.log(`✅ Successfully stored ${Object.keys(data).length} items in IndexedDB`)
   } catch (error) {
     console.error("❌ Error storing data in IndexedDB:", error)
-    throw error // Re-throw to let the caller handle it
+    throw error
+  } finally {
+    // Ensure database connection is closed
+    if (db) {
+      db.close()
+    }
   }
 }
 
@@ -169,30 +183,14 @@ export async function processAndStoreWatchHistoryByYear(watchHistoryData: any[])
 
   // Store all year data in a single transaction
   console.log('💾 Storing processed data...')
-  const db = await openDB(DB_NAME, 1, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(FILES_STORE)) {
-        db.createObjectStore(FILES_STORE, { keyPath: "fileName" })
-      }
-    },
-  })
-  
-  const tx = db.transaction(FILES_STORE, "readwrite")
-  const store = tx.objectStore(FILES_STORE)
-  
-  // Prepare all put operations
-  const putOperations = Object.entries(dataByYear).map(([year, data]) => {
-    const fileName = `watch-history-${year}`
-    console.log(`📁 Storing ${data.length} entries for year ${year}...`)
-    return store.put({ 
-      fileName, 
-      content: JSON.stringify(data)
-    })
-  })
-  
-  // Execute all put operations
-  await Promise.all(putOperations)
-  await tx.done
+  await storeDataInIndexedDB(
+    Object.fromEntries(
+      Object.entries(dataByYear).map(([year, data]) => [
+        `watch-history-${year}`,
+        JSON.stringify(data)
+      ])
+    )
+  )
   
   console.log('✅ Watch history processing complete!')
 } 
