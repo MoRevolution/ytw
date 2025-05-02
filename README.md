@@ -1,5 +1,5 @@
 # YouTube Wrapped 🎥
-
+### One of the 20+ knockoffs, and hopefully the one that nudges Youtube to make a real one
 Our attempt at creating a YouTube dashboard that's cooler than your average analytics page. Think Spotify Wrapped, but for your YouTube addiction.
 
 > ⚠️ Warning: This project is still in its "we're figuring shit out" phase. Expect bugs, unexpected behavior, and maybe even some magic✨ (seriously we have no clue if we did auth right)
@@ -16,7 +16,7 @@ Our attempt at creating a YouTube dashboard that's cooler than your average anal
 ## Tech Stack
 
 - Next.js (cause free hosting)
-- TypeScript (zero clue why till now since JS technically has types??)
+- TypeScript (zero clue why till now since JSDoc technically has types??)
 - Tailwind CSS (because...ya)
 - YouTube Data API + Upstash (because we like YouTube)
 - Firebase for Auth
