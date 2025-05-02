@@ -8,9 +8,8 @@ import { openDB } from "idb"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { toast } from "@/hooks/use-toast"
-import { isDataInIndexedDB} from "@/lib/indexeddb"
+import { isWatchHistoryDataComplete } from "@/lib/indexeddb"
 import { fetchAndProcessWatchHistory } from "@/lib/fetch-watch-history"
-import { WATCH_HISTORY_FILE } from "@/lib/constants"
 
 // Firebase imports would go here in a real implementation
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth"
@@ -39,6 +38,10 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
       const token = credential?.accessToken
       const user = result.user
 
+      if (!token) {
+        throw new Error("No access token available")
+      }
+
       setDataLoadingStatus("Creating your account...")
 
       // Create/update user via API
@@ -59,16 +62,26 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
       const { isNewUser } = await createUserResponse.json();
 
       // Check if data exists in IndexedDB
-      const hasData = await isDataInIndexedDB(WATCH_HISTORY_FILE);
+      const hasCompleteData = await isWatchHistoryDataComplete();
+      let isSampleUser = false;
       
-      if (!hasData) {
+      if (!hasCompleteData) {
         setDataLoadingStatus("Fetching your YouTube watch history...")
-        console.log("📦 No watch history data found in IndexedDB, fetching...");
+        console.log("📦 Watch history data not found or incomplete, fetching...");
+        
         try {
-          if (!token) {
-            throw new Error("No access token available");
+          const success = await fetchAndProcessWatchHistory(token, user.uid);
+          
+          if (!success) {
+            // If we're redirected to takeout instructions, don't proceed with login
+            return;
           }
-          await fetchAndProcessWatchHistory(token, user.uid);
+          
+          // Verify data was actually loaded
+          const dataLoaded = await isWatchHistoryDataComplete();
+          if (!dataLoaded) {
+            throw new Error("Failed to load watch history data");
+          }
           
           toast({
             title: "Data imported",
@@ -77,13 +90,10 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
         } catch (error: any) {
           console.error("❌ Error:", error.message);
           toast({
-            title: "Error",
-            description: "Could not fetch watch history. Please try again later.",
-            variant: "destructive"
+            title: "Using Sample Data",
+            description: "Could not fetch your watch history. You'll see sample data on the dashboard. Click the refresh button to try again later.",
           });
-          setIsLoading(false);
-          setDataLoadingStatus(null);
-          return; // Don't proceed to dashboard if data fetch fails
+          isSampleUser = true;
         }
       } else {
         console.log("📦 Using existing watch history data from IndexedDB");
@@ -91,13 +101,12 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
       
       setDataLoadingStatus("Finalizing your data...")
       
-      // Complete login process with actual user data
       login({
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        isSampleUser: false
+        isSampleUser
       })
       
       toast({
@@ -107,8 +116,8 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
           : "You have been successfully logged in.",
       })
 
-      // Only redirect after all data is loaded
-      router.push("/dashboard")
+      router.push("/dashboard");
+
     } catch (error) {
       console.error("Error during Google login process:", error)
       toast({
@@ -116,6 +125,7 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
         description: "An error occurred during the login process. Please try again.",
       })
     } finally {
+      // Clean up loading states
       setIsLoading(false)
       setDataLoadingStatus(null)
     }

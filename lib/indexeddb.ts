@@ -1,6 +1,6 @@
 import { openDB, IDBPDatabase } from "idb"
 import { getVideosMetadata  } from "./youtube-metadata"
-import { DB_NAME, FILES_STORE, WATCH_HISTORY_FILE } from './constants'
+import { DB_NAME, FILES_STORE, WATCH_HISTORY_FILE, AVAILABLE_YEARS_FILE } from './constants'
 
 // Current database version - increment this when schema changes
 const DB_VERSION = 1
@@ -51,6 +51,18 @@ export async function storeDataInIndexedDB(data: { [key: string]: string }) {
   
   try {
     db = await initDB()
+    
+    // Check if we're in a secure context
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      throw new Error('IndexedDB operations require a secure context (HTTPS)')
+    }
+    
+    // Check storage quota
+    if (navigator.storage && navigator.storage.estimate) {
+      const estimate = await navigator.storage.estimate()
+      console.log(`Storage quota: ${estimate.quota}, usage: ${estimate.usage}`)
+    }
+
     const tx = db.transaction(FILES_STORE, "readwrite")
     const store = tx.objectStore(FILES_STORE)
 
@@ -63,9 +75,13 @@ export async function storeDataInIndexedDB(data: { [key: string]: string }) {
     await tx.done
     
     console.log(`✅ Successfully stored ${Object.keys(data).length} items in IndexedDB`)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Error storing data in IndexedDB:", error)
-    throw error
+    // Add more context to the error
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const enhancedError = new Error(`Failed to store data in IndexedDB: ${errorMessage}`)
+    enhancedError.name = 'IndexedDBError'
+    throw enhancedError
   } finally {
     // Ensure database connection is closed
     if (db) {
@@ -136,6 +152,14 @@ export async function processAndStoreWatchHistoryByYear(watchHistoryData: any[])
 
   console.log('📊 Data grouped by year:', Object.keys(dataByYear))
 
+  // Store available years
+  const availableYears = Object.keys(dataByYear).map(Number).sort((a, b) => b - a)
+  console.log('📅 Storing available years:', availableYears)
+  await storeDataInIndexedDB({
+    [AVAILABLE_YEARS_FILE]: JSON.stringify(availableYears)
+  })
+  console.log('✅ Available years:', availableYears)
+
   // Get the two most recent complete years (excluding current year)
   const currentYear = new Date().getFullYear()
   const years = Object.keys(dataByYear)
@@ -193,4 +217,55 @@ export async function processAndStoreWatchHistoryByYear(watchHistoryData: any[])
   )
   
   console.log('✅ Watch history processing complete!')
+}
+
+export async function isWatchHistoryDataComplete(): Promise<boolean> {
+  try {
+    // Check for main watch history file
+    const hasMainData = await isDataInIndexedDB(WATCH_HISTORY_FILE);
+    if (!hasMainData) {
+      console.log("❌ Main watch history file not found");
+      return false;
+    }
+    
+    // Get available years from IndexedDB
+    const availableYearsData = await isDataInIndexedDB(AVAILABLE_YEARS_FILE);
+    if (!availableYearsData) {
+      console.log("❌ Available years data not found");
+      return false;
+    }
+
+    const db = await openDB(DB_NAME, 1);
+    const tx = db.transaction(FILES_STORE, "readonly");
+    const store = tx.objectStore(FILES_STORE);
+    const data = await store.get(AVAILABLE_YEARS_FILE);
+    
+    if (!data) {
+      console.log("❌ Could not read available years data");
+      return false;
+    }
+
+    const years = JSON.parse(data.content);
+    if (!Array.isArray(years) || years.length === 0) {
+      console.log("❌ No available years found");
+      return false;
+    }
+    
+    // Check for year files
+    const yearFilesExist = await Promise.all(
+      years.map(year => isDataInIndexedDB(`watch-history-${year}`))
+    );
+    
+    const allYearsExist = yearFilesExist.every(exists => exists);
+    if (!allYearsExist) {
+      console.log("❌ Not all year files exist");
+      return false;
+    }
+
+    console.log("✅ All watch history data is complete");
+    return true;
+  } catch (error) {
+    console.error("❌ Error checking watch history data completeness:", error);
+    return false;
+  }
 } 
