@@ -2,6 +2,8 @@ import type React from "react"
 import "@/app/globals.css"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
+import { SpeedInsights } from "@vercel/speed-insights/next"
+import { Analytics } from "@vercel/analytics/react"
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { ThemeScript } from "./theme-script"
@@ -25,6 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <ThemeScript />
             {children}
             <Toaster />
+            <SpeedInsights />
+            <Analytics />
           </AuthProvider>
         </ThemeProvider>
       </body>
