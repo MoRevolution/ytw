@@ -1,6 +1,4 @@
-import { processAndStoreWatchHistoryByYear, isDataInIndexedDB } from "./indexeddb"
-import { WATCH_HISTORY_FILE } from './constants'
-import { useRouter } from 'next/navigation'
+import { processAndStoreWatchHistoryByYear} from "./indexeddb"
 
 async function fetchWatchHistory(accessToken: string) {
   try {
@@ -42,31 +40,9 @@ async function fetchWatchHistory(accessToken: string) {
   }
 }
 
-export async function fetchAndProcessWatchHistory(accessToken: string, userId: string, forceRefresh: boolean = false) {
+export async function fetchAndProcessWatchHistory(accessToken: string, userId: string): Promise<boolean> {
   try {
-    // Only check for existing data if this is not a forced refresh
-    if (!forceRefresh) {
-      // Check for main watch history file
-      const hasMainData = await isDataInIndexedDB(WATCH_HISTORY_FILE);
-      
-      // Get current year and past two years
-      const currentYear = new Date().getFullYear();
-      const years = [currentYear, currentYear - 1, currentYear - 2];
-      
-      // Check for year files
-      const yearFilesExist = await Promise.all(
-        years.map(year => isDataInIndexedDB(`watch-history-${year}`))
-      );
-      
-      // Only skip if we have both the main file and the required year files
-      if (hasMainData && yearFilesExist.every(exists => exists)) {
-        console.log("📦 Watch history data and required year files already exist in IndexedDB");
-        return;
-      }
-    }
-
     // Fetch watch history from YouTube API
-    console.log("🔄 Starting watch history fetch...");
     try {
       const watchHistory = await fetchWatchHistory(accessToken);
       console.log("🔄 Processing and storing watch history data by year");
@@ -75,7 +51,7 @@ export async function fetchAndProcessWatchHistory(accessToken: string, userId: s
       if (error.message === 'NO_TAKEOUT_FOLDER') {
         // Redirect to takeout instructions page
         window.location.href = '/takeout-instructions';
-        return;
+        return false;
       }
       throw error;
     }
@@ -104,6 +80,7 @@ export async function fetchAndProcessWatchHistory(accessToken: string, userId: s
     }
 
     console.log("✅ Watch history data processed and stored successfully");
+    return true;
   } catch (error) {
     console.error("❌ Error in fetchAndProcessWatchHistory:", error);
     throw error;

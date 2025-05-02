@@ -62,7 +62,7 @@ export default function ProfilePage() {
       }
 
       // Use the helper function to handle the rest
-      await fetchAndProcessWatchHistory(accessToken, user?.uid || "", true);
+      await fetchAndProcessWatchHistory(accessToken, user?.uid || "");
 
       toast({
         title: "Data refreshed",
