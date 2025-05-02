@@ -134,7 +134,6 @@ export default function CreatorsPage() {
 
       } catch (error) {
         console.error("❌ Error in fetchData:", error)
-        setError('There was an error loading your YouTube data. Showing sample data instead.')
         setStats(mockCreatorStats as { primaryYear: DashboardStats; comparisonYear?: DashboardStats })
       } finally {
         setIsLoading(false)

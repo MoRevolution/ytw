@@ -17,8 +17,10 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
-            <Play className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">YouTube Wrapped</span>
+            <Link href="/" className="flex items-center gap-2">
+              <Play className="h-6 w-6 text-primary" />
+              <span className="text-xl font-bold">YouTube Wrapped</span>
+            </Link>
           </div>
           <nav className="hidden md:flex gap-6">
             <Link href="#features" className="text-sm font-medium hover:underline">
@@ -38,10 +40,9 @@ export default function HomePage() {
             <ThemeToggle />
             <UserProfile />
             {!isLoggedIn ? (
-              <Button onClick={(e) => {
-                e.preventDefault();
-                login();
-              }}>Get Started</Button>
+              <Link href="#how-it-works">
+                <Button>Get Started</Button>
+              </Link>
             ) : (
               <Link href="/dashboard">
                 <Button>Dashboard</Button>
@@ -60,7 +61,7 @@ export default function HomePage() {
               Discover your YouTube addiction in a fun and (soon) shareable format. <span className="inline-block">(<a href="/terms-and-privacy" className="text-primary hover:underline">Privacy Policy</a> ensures we won't judge... much 😜)</span>
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="#how-it-works">
+              <Link href={isLoggedIn ? "/dashboard" : "/login"}>
                 <Button size="lg" className="gap-2">
                   See Your Wrapped <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -70,6 +71,9 @@ export default function HomePage() {
                   View Sample
                 </Button>
               </Link>
+            </div>
+            <div className="mt-4 text-sm text-muted-foreground">
+              <p>New here? Check out our <a href="#how-it-works" className="text-primary hover:underline">quick guide</a> to get started! 🚀</p>
             </div>
           </div>
           <div className="mx-auto mt-16 grid max-w-5xl grid-cols-1 gap-8 md:grid-cols-2">
@@ -100,14 +104,17 @@ export default function HomePage() {
               </div>
             </div>
             <div className="relative overflow-hidden rounded-xl border bg-background p-2">
-              <div className="bg-gradient-to-br from-purple-500/20 to-purple-500/5 rounded-lg p-6">
-                <div className="flex flex-col gap-2">
+              <div className="bg-gradient-to-br from-purple-500/20 to-purple-500/5 rounded-lg p-6 h-full">
+                <div className="flex flex-col gap-2 h-full justify-center">
                   <h3 className="text-xl font-bold">Top Categories</h3>
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-4 space-y-4">
                     <div className="space-y-1">
                       <div className="flex justify-between text-sm">
                         <span>Gaming</span>
-                        <span className="font-medium">32%</span>
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">32%</span>
+                          <span className="text-purple-400 text-xs">(+8%)</span>
+                        </div>
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted">
                         <div className="h-full w-[32%] rounded-full bg-purple-500"></div>
@@ -116,7 +123,10 @@ export default function HomePage() {
                     <div className="space-y-1">
                       <div className="flex justify-between text-sm">
                         <span>Tech</span>
-                        <span className="font-medium">28%</span>
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">28%</span>
+                          <span className="text-purple-400 text-xs">(+3%)</span>
+                        </div>
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted">
                         <div className="h-full w-[28%] rounded-full bg-purple-500"></div>
@@ -125,7 +135,10 @@ export default function HomePage() {
                     <div className="space-y-1">
                       <div className="flex justify-between text-sm">
                         <span>Music</span>
-                        <span className="font-medium">18%</span>
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">18%</span>
+                          <span className="text-purple-300 text-xs">(-2%)</span>
+                        </div>
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted">
                         <div className="h-full w-[18%] rounded-full bg-purple-500"></div>
@@ -134,7 +147,10 @@ export default function HomePage() {
                     <div className="space-y-1">
                       <div className="flex justify-between text-sm">
                         <span>Education</span>
-                        <span className="font-medium">12%</span>
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">12%</span>
+                          <span className="text-purple-400 text-xs">(+4%)</span>
+                        </div>
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted">
                         <div className="h-full w-[12%] rounded-full bg-purple-500"></div>
@@ -143,7 +159,10 @@ export default function HomePage() {
                     <div className="space-y-1">
                       <div className="flex justify-between text-sm">
                         <span>Entertainment</span>
-                        <span className="font-medium">10%</span>
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">10%</span>
+                          <span className="text-purple-300 text-xs">(-13%)</span>
+                        </div>
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted">
                         <div className="h-full w-[10%] rounded-full bg-purple-500"></div>
@@ -198,19 +217,22 @@ export default function HomePage() {
           <div className="mx-auto flex max-w-[58rem] flex-col items-center justify-center gap-4 text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">How It Works</h2>
             <p className="max-w-[42rem] leading-normal text-muted-foreground sm:text-xl sm:leading-8">
-              Some steps to get us going...
+              Get your personalized YouTube Wrapped in just 3 simple steps
             </p>
           </div>
           <div className="mx-auto mt-16 grid max-w-5xl grid-cols-1 gap-8 md:grid-cols-3">
-            <div className="flex flex-col items-center gap-4 rounded-lg border bg-background p-6 text-center">
+            <div className="flex flex-col items-center gap-4 rounded-lg border bg-background p-6 text-center relative">
+              <div className="absolute -top-3 -right-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+                Required
+              </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-2xl font-bold">
                 1
               </div>
               <h3 className="text-xl font-bold">Export Your Data</h3>
               <p className="text-muted-foreground">Get your YouTube watch history from Google Takeout. <span className="inline-block">(It's sooo easy, kinda!)</span></p>
               <Link href="/takeout-instructions">
-                <Button variant="outline" className="mt-2">
-                  Learn How
+                <Button className="mt-2">
+                  Get Takeout Instructions
                 </Button>
               </Link>
             </div>

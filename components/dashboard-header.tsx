@@ -3,6 +3,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { ShareStats } from "@/components/share-stats"
 import { UserProfile } from "@/components/user-profile"
 import { useState, useEffect } from "react"
+import Link from "next/link"
 
 export function DashboardHeader() {
   const [stats, setStats] = useState<{
@@ -34,8 +35,10 @@ export function DashboardHeader() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-2">
-          <Film className="h-6 w-6 text-primary" />
-          <span className="text-xl font-bold">YouTube Wrapped</span>
+          <Link href="/" className="flex items-center gap-2">
+            <Film className="h-6 w-6 text-primary" />
+            <span className="text-xl font-bold">YouTube Wrapped</span>
+          </Link>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />

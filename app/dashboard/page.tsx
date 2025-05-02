@@ -67,7 +67,7 @@ const mockStats = {
         title: "These new computers are getting creepy… Copilot+ PC first look",
         channel: "Fireship",
         count: 12,
-        videoId: ""
+        videoId: "hlwcZpEx2IY"
       },
       {
         title: "iPhone 16/16 Pro Review: Times Have Changed!",
@@ -437,8 +437,8 @@ export default function DashboardPage() {
                         <div className="py-1"></div>
                       </CardHeader>
                       <CardContent>
-                        <div className="flex gap-4 overflow-x-auto pb-4 px-4">
-                          {stats?.primaryYear.mostWatchedVideos?.map((video) => (
+                      <div className="flex gap-4 overflow-x-auto pb-4 px-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent scroll-smooth">
+                        {stats?.primaryYear.mostWatchedVideos?.map((video) => (
                             <a 
                               key={video.videoId}
                               href={`https://www.youtube.com/watch?v=${video.videoId}`}

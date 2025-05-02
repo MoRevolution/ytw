@@ -12,8 +12,10 @@ export default function TakeoutInstructionsPage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
-            <Play className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">YouTube Wrapped</span>
+            <Link href="/" className="flex items-center gap-2">
+              <Play className="h-6 w-6 text-primary" />
+              <span className="text-xl font-bold">YouTube Wrapped</span>
+            </Link>
           </div>
           <Link href="/">
             <Button variant="ghost" className="gap-2">
@@ -121,7 +123,7 @@ export default function TakeoutInstructionsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <p>1. Wait for Google to prepare your data (this may take a few minutes to several hours - i worry for you if it takes hours 😭)</p>
+                  <p>1. Wait for Google to prepare your data (this may take a few minutes to several hours - we really worry for you if it takes hours 😭)</p>
                   <p>2. You'll receive an email when your data is ready and you should be good to go!!</p>
                 </div>
               </CardContent>
