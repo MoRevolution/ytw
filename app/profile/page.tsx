@@ -94,8 +94,10 @@ export default function ProfilePage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
-            <Film className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">YouTube Wrapped</span>
+            <Link href="/" className="flex items-center gap-2">
+              <Film className="h-6 w-6 text-primary" />
+              <span className="text-xl font-bold">YouTube Wrapped</span>
+            </Link>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
