@@ -31,13 +31,6 @@ export default function LoginPage() {
     checkUsers();
   }, []);
 
-  // Redirect if already logged in
-  useEffect(() => {
-    if (isLoggedIn) {
-      router.push("/dashboard");
-    }
-  }, [isLoggedIn, router]);
-
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
       <Link
