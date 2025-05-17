@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { toast } from "@/hooks/use-toast"
 import { isWatchHistoryDataComplete } from "@/lib/indexeddb"
-import { fetchAndProcessWatchHistory } from "@/lib/fetch-watch-history"
+import { processAndStoreWatchHistoryByYear } from "@/lib/process-watch-history"
 
 // Firebase imports would go here in a real implementation
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth"
@@ -70,18 +70,28 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
         console.log("📦 Watch history data not found or incomplete, fetching...");
         
         try {
-          const success = await fetchAndProcessWatchHistory(token, user.uid);
+          const idToken = await user.getIdToken();
           
-          if (!success) {
-            // If we're redirected to takeout instructions, don't proceed with login
-            return;
+          const response = await fetch('/api/users/get-history', {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`,
+            },
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch watch history: ${response.status}`);
           }
           
-          // Verify data was actually loaded
-          const dataLoaded = await isWatchHistoryDataComplete();
-          if (!dataLoaded) {
-            throw new Error("Failed to load watch history data");
+          const { data } = await response.json();
+          
+          if (!data) {
+            throw new Error("No watch history data available");
           }
+          
+          // Process and store the watch history data
+          await processAndStoreWatchHistoryByYear(data);
           
           toast({
             title: "Data imported",

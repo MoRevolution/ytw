@@ -1,5 +1,6 @@
 import { getAdminDB } from '@/lib/firebase-admin';
 import { NextResponse } from 'next/server';
+import { encryptToken } from '@/lib/encryption';
 
 export async function POST(request: Request) {
   try {
@@ -7,6 +8,9 @@ export async function POST(request: Request) {
     const adminDb = getAdminDB();
     const { uid, email, displayName, accessToken, photoURL } = await request.json();
     console.log('📝 User data received:', { uid, email, displayName });
+
+    // Encrypt the access token before storing
+    const encryptedToken = await encryptToken(accessToken);
 
     // First check if users collection exists and if this user exists
     const usersRef = adminDb.collection('users');
@@ -21,7 +25,7 @@ export async function POST(request: Request) {
         email,
         displayName,
         photoURL,
-        accessToken,
+        accessToken: encryptedToken,
         createdAt: now,
         lastLogin: now,
         hasWatchHistory: false
@@ -34,7 +38,7 @@ export async function POST(request: Request) {
     // Update existing user's last login
     await usersRef.doc(uid).update({
       lastLogin: now,
-      accessToken, // Update token
+      accessToken: encryptedToken, // Update token
       email,
       displayName,
       photoURL,
