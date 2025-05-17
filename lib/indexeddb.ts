@@ -100,9 +100,7 @@ export async function storeDataInIndexedDB(data: { [key: string]: string }) {
  * @param watchHistoryData - Array of raw watch history entries from YouTube
  */
 export async function processAndStoreWatchHistoryByYear(watchHistoryData: any[]) {
-  console.log('📊 Starting watch history processing...')
-  console.log(`📥 Total entries to process: ${watchHistoryData.length}`)
-
+  
   // First store the raw data as backup
   console.log('💾 Storing raw watch history data...')
   await storeDataInIndexedDB({
@@ -158,7 +156,6 @@ export async function processAndStoreWatchHistoryByYear(watchHistoryData: any[])
   await storeDataInIndexedDB({
     [AVAILABLE_YEARS_FILE]: JSON.stringify(availableYears)
   })
-  console.log('✅ Available years:', availableYears)
 
   // Get the two most recent complete years (excluding current year)
   const currentYear = new Date().getFullYear()

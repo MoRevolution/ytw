@@ -21,6 +21,7 @@ interface YouTubeVideoMetadata {
   duration: string;
 }
 
+// TODO: not needed any more, remove when cleaning up
 export async function getVideoMetadata(
   videoId: string
 ): Promise<YouTubeVideoMetadata | null> {

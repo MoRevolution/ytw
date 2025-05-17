@@ -13,7 +13,7 @@ import { UserProfile } from "@/components/user-profile"
 import { useAuth } from "@/contexts/auth-context"
 import { toast } from "@/hooks/use-toast"
 import { auth } from "@/lib/firebase"
-import { fetchAndProcessWatchHistory } from "@/lib/fetch-watch-history"
+import { processAndStoreWatchHistoryByYear } from "@/lib/process-watch-history"
 
 export default function ProfilePage() {
   const { isLoggedIn, user, logout } = useAuth()
@@ -41,28 +41,26 @@ export default function ProfilePage() {
         throw new Error("No authenticated user found");
       }
 
-      // Get the user's stored access token from Firestore
-      const response = await fetch('/api/users/get-token', {
+      const response = await fetch('/api/users/get-history', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`,
         },
       });
-      
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch access token: ${response.status}`);
+        throw new Error(`Failed to fetch watch history: ${response.status}`);
       }
 
-      const { accessToken } = await response.json();
+      const { data } = await response.json();
       
-      if (!accessToken) {
-        throw new Error("No access token available");
+      if (!data) {
+        throw new Error("No watch history data available");
       }
 
-      // Use the helper function to handle the rest
-      await fetchAndProcessWatchHistory(accessToken, user?.uid || "");
+      // Process and store the watch history data
+      await processAndStoreWatchHistoryByYear(data);
 
       toast({
         title: "Data refreshed",
