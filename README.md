@@ -2,7 +2,7 @@
 ### One of the 20+ knockoffs, and hopefully the one that nudges Youtube to make a real one
 Our attempt at creating a YouTube dashboard that's cooler than your average analytics page. Think Spotify Wrapped, but for your YouTube addiction.
 
-> ⚠️ Warning: This project is still in its "we're figuring shit out" phase. Expect bugs, unexpected behavior, and maybe even some magic✨ (seriously we have no clue if we did auth right)
+> ⚠️ Warning: This project is still in its "we're figuring s**t out" phase. Expect bugs, unexpected behavior, and maybe even some magic✨ (seriously we have no clue if we did auth right)
 
 ## Quick Start
 
