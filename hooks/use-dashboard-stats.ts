@@ -6,7 +6,7 @@ import { fetchDefaultComparison, DashboardStats } from "@/lib/fetch-dashboard-da
 const CACHE_KEY = "dashboardStats"
 const CACHE_TIMESTAMP_KEY = "dashboardStatsTimestamp"
 const CACHE_VERSION_KEY = "dashboardStatsVersion"
-const CACHE_VERSION = "v3"
+const CACHE_VERSION = "v5"
 const CACHE_DURATION = 3600000 // 1 hour in milliseconds
 
 export interface DashboardStatsResult {

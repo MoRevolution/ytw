@@ -8,15 +8,18 @@ import { CreatorStats } from "@/lib/fetch-creators-data"
 import { getChannelThumbnailCached } from "@/lib/youtube-api"
 
 interface CreatorCardProps {
-  creator: CreatorStats
+  creator: CreatorStats & { normalizedScore?: number }
   rank: number
   maxWatchTime: number
   comparisonCreator?: CreatorStats
+  showNormalized?: boolean
 }
 
-export function CreatorCard({ creator, rank, maxWatchTime, comparisonCreator }: CreatorCardProps) {
+export function CreatorCard({ creator, rank, maxWatchTime, comparisonCreator, showNormalized = false }: CreatorCardProps) {
   const [thumbnailUrl, setThumbnailUrl] = useState<string>('/placeholder.svg?height=40&width=40')
-  const progressValue = (creator.watchTime / maxWatchTime) * 100
+  
+  const displayValue = showNormalized ? (creator.normalizedScore || 0) : creator.watchTime
+  const progressValue = (displayValue / maxWatchTime) * 100
 
   useEffect(() => {
     async function loadThumbnail() {
@@ -42,11 +45,13 @@ export function CreatorCard({ creator, rank, maxWatchTime, comparisonCreator }: 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
           <p className="font-medium truncate">{creator.name}</p>
-          <span className="text-sm text-muted-foreground ml-2">{creator.watchTime.toFixed(1)}h</span>
+          <span className="text-sm text-muted-foreground ml-2">
+            {showNormalized ? `${displayValue.toFixed(1)} score` : `${creator.watchTime.toFixed(1)}h`}
+          </span>
         </div>
         <div className="flex items-center gap-2 mt-1">
           <Progress value={progressValue} className="flex-1 h-2" />
-          {comparisonCreator && (
+          {comparisonCreator && !showNormalized && (
             <span className={`text-xs font-medium w-12 text-right ${creator.watchTime > comparisonCreator.watchTime ? "text-green-500" : "text-red-500"}`}>
               {Math.round(((creator.watchTime - comparisonCreator.watchTime) / comparisonCreator.watchTime) * 100)}%
             </span>

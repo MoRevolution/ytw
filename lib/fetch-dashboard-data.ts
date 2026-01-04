@@ -25,6 +25,8 @@ interface CreatorStats {
   watchTime: number
   videoCount: number
   channelId: string
+  avgVideoDuration: number  // Average video duration in hours for this creator
+  normalizedScore: number   // Watch time normalized by average video duration
 }
 
 export interface CategoryStats {
@@ -364,7 +366,9 @@ function calculateCreatorStats(entries: WatchHistoryEntry[]): CreatorStats[] {
         name: creator,
         watchTime: 0,
         videoCount: 0,
-        channelId: entry.channel_url ? entry.channel_url.split('/').pop() || '' : ''
+        channelId: entry.channel_url ? entry.channel_url.split('/').pop() || '' : '',
+        avgVideoDuration: 0,
+        normalizedScore: 0
       }
     }
     
@@ -374,10 +378,24 @@ function calculateCreatorStats(entries: WatchHistoryEntry[]): CreatorStats[] {
     return stats
   }, {} as Record<string, CreatorStats>)
 
-  // Convert to array and sort by watch time
+  // Calculate global average video duration across all entries
+  const validDurations = entries.filter(e => e.duration && parseISODuration(e.duration) > 0)
+  const totalDuration = validDurations.reduce((sum, e) => sum + parseISODuration(e.duration), 0)
+  const globalAvgDuration = validDurations.length > 0 ? totalDuration / validDurations.length : 0.1 // Default to 6 min if no valid durations
+
+  // Calculate avg video duration and normalized score for each creator
+  Object.values(creatorStats).forEach(creator => {
+    creator.avgVideoDuration = creator.videoCount > 0 ? creator.watchTime / creator.videoCount : 0
+    // Normalized score = videoCount * globalAvgDuration
+    // This gives a score based on number of videos, normalized by average video length
+    // So creators with many short videos get fair comparison to creators with fewer long videos
+    creator.normalizedScore = creator.videoCount * globalAvgDuration
+  })
+
+  // Convert to array and sort by watch time, keep top 20 so normalized view can pick different top 5
   const sortedCreators = Object.values(creatorStats)
     .sort((a, b) => b.watchTime - a.watchTime)
-    .slice(0, 5) // Get top 5
+    .slice(0, 20) // Keep top 20 for both raw and normalized sorting
 
   return sortedCreators
 }

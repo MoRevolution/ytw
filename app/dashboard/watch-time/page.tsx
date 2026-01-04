@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ArrowDown, ArrowUp, Clock } from "lucide-react"
 import { useEffect, useState } from "react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
@@ -175,7 +176,8 @@ function calculatePercentageChange(current: number, previous: number): number {
 }
 
 export default function WatchTimePage() {
-  const { isLoggedIn, isSampleUser } = useAuth()
+  const { isLoggedIn, isAuthLoading, isSampleUser } = useAuth()
+  const router = useRouter()
   const [stats, setStats] = useState<WatchTimeStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -227,6 +229,13 @@ export default function WatchTimePage() {
       }
     }
   }
+
+  // Redirect if not logged in (only after auth has finished loading)
+  useEffect(() => {
+    if (!isAuthLoading && !isLoggedIn) {
+      router.push("/")
+    }
+  }, [isLoggedIn, isAuthLoading, router])
 
   useEffect(() => {
     const fetchData = async () => {

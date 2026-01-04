@@ -186,17 +186,17 @@ function setCachedData(year: number, data: CategoryData): void {
 }
 
 export default function CategoriesPage() {
-  const { isLoggedIn, isSampleUser } = useAuth()
+  const { isLoggedIn, isAuthLoading, isSampleUser } = useAuth()
   const router = useRouter()
   const [data, setData] = useState<CategoryData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Redirect if not logged in
+  // Redirect if not logged in (only after auth has finished loading)
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isAuthLoading && !isLoggedIn) {
       router.push("/")
     }
-  }, [isLoggedIn, router])
+  }, [isLoggedIn, isAuthLoading, router])
 
   useEffect(() => {
     const fetchData = async () => {

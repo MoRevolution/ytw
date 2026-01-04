@@ -7,7 +7,7 @@ import Image from "next/image"
 import { 
   Film, Share2, Star, Play, GitCompare, 
   Gamepad2, Monitor, Music, GraduationCap, Tv, 
-  Popcorn, Timer, Flame
+  Popcorn, Timer, Flame, HelpCircle, ToggleLeft, ToggleRight
 } from "lucide-react"
 import { Bar } from "react-chartjs-2"
 import {
@@ -89,11 +89,11 @@ const mockStats = {
     year: 2023,
     isComplete: true,
     topCreators: [
-      { name: "MKBHD", watchTime: 42.3, videoCount: 85, channelId: "UCBJycsmduvYEL83R_U4JriQ" },
-      { name: "Linus Tech Tips", watchTime: 38.7, videoCount: 78, channelId: "UCXuqSBlHAE6Xw-yeJA0Tunw" },
-      { name: "Veritasium", watchTime: 29.5, videoCount: 60, channelId: "UCHnyfMqiRRG1u-2MsSQLbXA" },
-      { name: "Fireship", watchTime: 24.8, videoCount: 50, channelId: "UCsBjURrPoezykLs9EqgamOA" },
-      { name: "The Verge", watchTime: 20.1, videoCount: 45, channelId: "UCddiUEpeqJcYeBxXxIVlKCA" }
+      { name: "MKBHD", watchTime: 42.3, videoCount: 85, channelId: "UCBJycsmduvYEL83R_U4JriQ", avgVideoDuration: 0.5, normalizedScore: 42.5 },
+      { name: "Linus Tech Tips", watchTime: 38.7, videoCount: 78, channelId: "UCXuqSBlHAE6Xw-yeJA0Tunw", avgVideoDuration: 0.5, normalizedScore: 39.0 },
+      { name: "Veritasium", watchTime: 29.5, videoCount: 60, channelId: "UCHnyfMqiRRG1u-2MsSQLbXA", avgVideoDuration: 0.49, normalizedScore: 30.0 },
+      { name: "Fireship", watchTime: 24.8, videoCount: 50, channelId: "UCsBjURrPoezykLs9EqgamOA", avgVideoDuration: 0.5, normalizedScore: 25.0 },
+      { name: "The Verge", watchTime: 20.1, videoCount: 45, channelId: "UCddiUEpeqJcYeBxXxIVlKCA", avgVideoDuration: 0.45, normalizedScore: 22.5 }
     ],
     monthlyVideoCounts: [120, 150, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360],
     monthlyWatchTime: [12.5, 15.2, 18.7, 20.3, 22.1, 24.5, 26.8, 28.9, 30.2, 32.4, 34.7, 36.9],
@@ -190,11 +190,11 @@ const mockStats = {
     year: 2022,
     isComplete: true,
     topCreators: [
-      { name: "Linus Tech Tips", watchTime: 45.2, videoCount: 90, channelId: "UCXuqSBlHAE6Xw-yeJA0Tunw" },
-      { name: "MKBHD", watchTime: 35.8, videoCount: 70, channelId: "UCBJycsmduvYEL83R_U4JriQ" },
-      { name: "The Verge", watchTime: 28.3, videoCount: 55, channelId: "UCddiUEpeqJcYeBxXxIVlKCA" },
-      { name: "Veritasium", watchTime: 25.6, videoCount: 50, channelId: "UCHnyfMqiRRG1u-2MsSQLbXA" },
-      { name: "Fireship", watchTime: 22.4, videoCount: 45, channelId: "UCsBjURrPoezykLs9EqgamOA" }
+      { name: "Linus Tech Tips", watchTime: 45.2, videoCount: 90, channelId: "UCXuqSBlHAE6Xw-yeJA0Tunw", avgVideoDuration: 0.5, normalizedScore: 45.0 },
+      { name: "MKBHD", watchTime: 35.8, videoCount: 70, channelId: "UCBJycsmduvYEL83R_U4JriQ", avgVideoDuration: 0.51, normalizedScore: 35.0 },
+      { name: "The Verge", watchTime: 28.3, videoCount: 55, channelId: "UCddiUEpeqJcYeBxXxIVlKCA", avgVideoDuration: 0.51, normalizedScore: 27.5 },
+      { name: "Veritasium", watchTime: 25.6, videoCount: 50, channelId: "UCHnyfMqiRRG1u-2MsSQLbXA", avgVideoDuration: 0.51, normalizedScore: 25.0 },
+      { name: "Fireship", watchTime: 22.4, videoCount: 45, channelId: "UCsBjURrPoezykLs9EqgamOA", avgVideoDuration: 0.5, normalizedScore: 22.5 }
     ],
     monthlyVideoCounts: [100, 130, 160, 180, 200, 220, 240, 260, 280, 300, 320, 340],
     monthlyWatchTime: [10.2, 13.5, 16.8, 18.2, 20.1, 22.4, 24.7, 26.8, 28.9, 30.2, 32.4, 34.6],
@@ -253,9 +253,10 @@ const mockStats = {
 }
 
 export default function DashboardPage() {
-  const { isLoggedIn, isSampleUser } = useAuth()
+  const { isLoggedIn, isAuthLoading, isSampleUser } = useAuth()
   const router = useRouter()
   const [showComparison, setShowComparison] = useState(false)
+  const [showNormalized, setShowNormalized] = useState(false)
 
   // Use the custom hook for data fetching with caching
   const { stats, isLoading, error } = useDashboardStats({
@@ -264,12 +265,12 @@ export default function DashboardPage() {
     mockData: mockStats as DashboardStatsResult,
   })
 
-  // Redirect if not logged in
+  // Redirect if not logged in (only after auth has finished loading)
   useEffect(() => {
-    if (!isLoggedIn && !isLoading) {
+    if (!isAuthLoading && !isLoggedIn) {
       router.push("/")
     }
-  }, [isLoggedIn, router, isLoading])
+  }, [isLoggedIn, router, isAuthLoading])
 
   // Show error toast if there's an error (but we still have fallback data)
   useEffect(() => {
@@ -278,7 +279,7 @@ export default function DashboardPage() {
     }
   }, [error, stats])
 
-  if (!isLoggedIn && !isLoading) {
+  if (isAuthLoading || (!isLoggedIn && !isLoading)) {
     return null
   }
 
@@ -495,13 +496,41 @@ export default function DashboardPage() {
                               })}
                             </div>
                           </TabsContent>
-                          <TabsContent value="creators" className="mt-0 h-full">
-                            <div className="space-y-3">
+                          <TabsContent value="creators" className="mt-0 h-full flex flex-col">
+                            <div className="flex items-center justify-between mb-3">
+                              <button
+                                onClick={() => setShowNormalized(!showNormalized)}
+                                className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                {showNormalized ? (
+                                  <ToggleRight className="h-4 w-4 text-primary" />
+                                ) : (
+                                  <ToggleLeft className="h-4 w-4" />
+                                )}
+                                <span>{showNormalized ? 'Normalized' : 'Raw hours'}</span>
+                              </button>
+                              <div className="group relative">
+                                <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                <div className="absolute right-0 top-6 w-48 p-2 bg-popover border rounded-md shadow-lg text-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                  <strong>Raw:</strong> Total watch time<br/>
+                                  <strong>Normalized:</strong> Adjusts for video length so creators with shorter videos aren't penalized
+                                </div>
+                              </div>
+                            </div>
+                            <div className="space-y-3 flex-1">
                               {(() => {
-                                const maxWatchTime = Math.max(
-                                  ...stats.primaryYear.topCreators.map(c => c.watchTime)
-                                )
-                                return stats.primaryYear.topCreators.map((creator, index) => {
+                                // Sort by normalized or raw based on toggle, then take top 5
+                                const sortedCreators = [...stats.primaryYear.topCreators]
+                                  .sort((a, b) => 
+                                    showNormalized 
+                                      ? (b.normalizedScore || 0) - (a.normalizedScore || 0)
+                                      : b.watchTime - a.watchTime
+                                  )
+                                  .slice(0, 5) // Take top 5 after sorting
+                                const maxValue = showNormalized
+                                  ? Math.max(...sortedCreators.map(c => c.normalizedScore || 0))
+                                  : Math.max(...sortedCreators.map(c => c.watchTime))
+                                return sortedCreators.map((creator, index) => {
                                   const comparisonCreator = stats.comparisonYear?.topCreators.find(
                                     c => c.name === creator.name
                                   )
@@ -511,7 +540,8 @@ export default function DashboardPage() {
                                       creator={creator} 
                                       rank={index + 1}
                                       comparisonCreator={comparisonCreator}
-                                      maxWatchTime={maxWatchTime}
+                                      maxWatchTime={maxValue}
+                                      showNormalized={showNormalized}
                                     />
                                   )
                                 })
@@ -528,13 +558,21 @@ export default function DashboardPage() {
                     <Card className="card-hover h-full min-h-[380px] relative overflow-hidden flex flex-col">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/20 to-transparent rounded-bl-full" />
                       <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-orange-500/10">
-                            <Flame className="h-5 w-5 text-orange-500" />
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-orange-500/10">
+                              <Flame className="h-5 w-5 text-orange-500" />
+                            </div>
+                            <div>
+                              <CardTitle className="text-lg">Marathon Mode 🍿</CardTitle>
+                              <CardDescription>Your longest viewing session</CardDescription>
+                            </div>
                           </div>
-                          <div>
-                            <CardTitle className="text-lg">Marathon Mode 🍿</CardTitle>
-                            <CardDescription>Your longest viewing session</CardDescription>
+                          <div className="group relative z-10">
+                            <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                            <div className="absolute right-0 top-6 w-52 p-2 bg-popover border rounded-md shadow-lg text-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              A session is defined as consecutive videos watched within 30 minutes of each other. We find your longest uninterrupted viewing streak!
+                            </div>
                           </div>
                         </div>
                       </CardHeader>

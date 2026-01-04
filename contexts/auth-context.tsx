@@ -16,6 +16,7 @@ type User = {
 
 type AuthContextType = {
   isLoggedIn: boolean
+  isAuthLoading: boolean
   user: User | null
   login: (userData?: User) => void
   logout: () => void
@@ -35,6 +36,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [user, setUser] = useState<User | null>(null)
   const router = useRouter()
 
@@ -54,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoggedIn(false)
         setUser(null)
       }
+      setIsAuthLoading(false)
     })
 
     return () => unsubscribe()
@@ -74,13 +77,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const viewSampleUser = () => {
+    setIsAuthLoading(false)
     setIsLoggedIn(true)
     setUser(sampleUser)
     router.push("/dashboard")
   }
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, user, login, logout, viewSampleUser, isSampleUser: user?.isSampleUser || false }}>
+    <AuthContext.Provider value={{ isLoggedIn, isAuthLoading, user, login, logout, viewSampleUser, isSampleUser: user?.isSampleUser || false }}>
       {children}
     </AuthContext.Provider>
   )

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { Share2, Star, Play, GitCompare } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -13,6 +14,7 @@ import { Sidebar } from "@/components/sidebar"
 import { fetchDefaultComparison, DashboardStats } from "@/lib/fetch-dashboard-data"
 import { getChannelThumbnailCached } from "@/lib/youtube-api"
 import { CreatorCard } from "@/components/creator-card"
+import { useAuth } from "@/contexts/auth-context"
 
 
 
@@ -82,10 +84,19 @@ const mockCreatorStats = {
 }
 
 export default function CreatorsPage() {
+  const { isLoggedIn, isAuthLoading } = useAuth()
+  const router = useRouter()
   const [stats, setStats] = useState<{ primaryYear: DashboardStats; comparisonYear?: DashboardStats } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({})
+
+  // Redirect if not logged in (only after auth has finished loading)
+  useEffect(() => {
+    if (!isAuthLoading && !isLoggedIn) {
+      router.push("/")
+    }
+  }, [isLoggedIn, isAuthLoading, router])
 
   useEffect(() => {
     const fetchData = async () => {

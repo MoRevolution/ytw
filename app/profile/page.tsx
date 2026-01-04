@@ -16,19 +16,19 @@ import { auth } from "@/lib/firebase"
 import { processAndStoreWatchHistoryByYear } from "@/lib/process-watch-history"
 
 export default function ProfilePage() {
-  const { isLoggedIn, user, logout } = useAuth()
+  const { isLoggedIn, isAuthLoading, user, logout } = useAuth()
   const router = useRouter()
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // Redirect if not logged in
+  // Redirect if not logged in (only after auth has finished loading)
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isAuthLoading && !isLoggedIn) {
       router.push("/login")
     }
-  }, [isLoggedIn, router])
+  }, [isLoggedIn, isAuthLoading, router])
 
-  // If not logged in, don't render the page content
-  if (!isLoggedIn) {
+  // If auth is loading or not logged in, don't render the page content
+  if (isAuthLoading || !isLoggedIn) {
     return null
   }
 
