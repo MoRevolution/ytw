@@ -4,7 +4,11 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { Film, Share2, Star, Play, GitCompare } from "lucide-react"
+import { 
+  Film, Share2, Star, Play, GitCompare, 
+  Gamepad2, Monitor, Music, GraduationCap, Tv, 
+  Popcorn, Timer, Flame
+} from "lucide-react"
 import { Bar } from "react-chartjs-2"
 import {
   Chart as ChartJS,
@@ -28,15 +32,49 @@ ChartJS.register(
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ShareStats } from "@/components/share-stats"
 import { AnimatedCard, AnimatedStat } from "@/components/animated-card"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Sidebar } from "@/components/sidebar"
-import { fetchDefaultComparison, DashboardStats, CategoryStats } from "@/lib/fetch-dashboard-data"
+import { useDashboardStats, DashboardStatsResult } from "@/hooks/use-dashboard-stats"
+import { CategoryStats } from "@/lib/fetch-dashboard-data"
 import { getChannelThumbnailCached } from "@/lib/youtube-api"
 import { WordCloudComponent } from "@/components/word-cloud"
 import { CreatorCard } from "@/components/creator-card"
+
+// Category icons mapping
+const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+  "Gaming": <Gamepad2 className="h-4 w-4" />,
+  "Tech": <Monitor className="h-4 w-4" />,
+  "Music": <Music className="h-4 w-4" />,
+  "Education": <GraduationCap className="h-4 w-4" />,
+  "Entertainment": <Tv className="h-4 w-4" />,
+  "Science & Technology": <Monitor className="h-4 w-4" />,
+  "People & Blogs": <Film className="h-4 w-4" />,
+  "Comedy": <Popcorn className="h-4 w-4" />,
+}
+
+// Category colors for gradients
+const CATEGORY_COLORS = [
+  { bg: "from-red-500/20 to-red-500/5", bar: "bg-gradient-to-r from-red-500 to-red-400" },
+  { bg: "from-purple-500/20 to-purple-500/5", bar: "bg-gradient-to-r from-purple-500 to-purple-400" },
+  { bg: "from-blue-500/20 to-blue-500/5", bar: "bg-gradient-to-r from-blue-500 to-blue-400" },
+  { bg: "from-green-500/20 to-green-500/5", bar: "bg-gradient-to-r from-green-500 to-green-400" },
+  { bg: "from-orange-500/20 to-orange-500/5", bar: "bg-gradient-to-r from-orange-500 to-orange-400" },
+  { bg: "from-pink-500/20 to-pink-500/5", bar: "bg-gradient-to-r from-pink-500 to-pink-400" },
+]
+
+// Fun comparisons for marathon sessions
+function getMarathonComparison(hours: number): string {
+  if (hours >= 10) return "That's a full work day of pure YouTube! 🏆"
+  if (hours >= 6) return "You could've watched the entire Lord of the Rings trilogy!"
+  if (hours >= 4) return "Enough time to fly from NYC to LA ✈️"
+  if (hours >= 3) return "That's longer than Titanic! 🚢"
+  if (hours >= 2) return "A proper movie marathon session 🍿"
+  return "A solid binge-watching session! 📺"
+}
 
 
 
@@ -217,96 +255,29 @@ const mockStats = {
 export default function DashboardPage() {
   const { isLoggedIn, isSampleUser } = useAuth()
   const router = useRouter()
-  const [stats, setStats] = useState<{ primaryYear: DashboardStats; comparisonYear?: DashboardStats } | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [showComparison, setShowComparison] = useState(false)
 
-  // Redirect if not logged in, but only after initial load
+  // Use the custom hook for data fetching with caching
+  const { stats, isLoading, error } = useDashboardStats({
+    enabled: isLoggedIn,
+    useMockData: isSampleUser,
+    mockData: mockStats as DashboardStatsResult,
+  })
+
+  // Redirect if not logged in
   useEffect(() => {
     if (!isLoggedIn && !isLoading) {
       router.push("/")
     }
   }, [isLoggedIn, router, isLoading])
 
-  // Fetch real data if not sample user, otherwise use mock data
+  // Show error toast if there's an error (but we still have fallback data)
   useEffect(() => {
-    if (isLoggedIn) {
-      if (isSampleUser) {
-        setStats(mockStats)
-        setIsLoading(false)
-      } else {
-        const fetchData = async () => {
-          try {
-            // Check if we're in the browser environment
-            // Check if we have cached data
-            const CACHE_VERSION = 'v2' // Bump this to invalidate old cache
-            const cachedData = localStorage.getItem('dashboardStats')
-            const cachedTimestamp = localStorage.getItem('dashboardStatsTimestamp')
-            const cachedVersion = localStorage.getItem('dashboardStatsVersion')
-            const now = new Date().getTime()
-            
-            // If we have cached data less than 1 hour old AND correct version, use it
-            if (cachedData && cachedTimestamp && cachedVersion === CACHE_VERSION) {
-              try {
-                const parsedData = JSON.parse(cachedData)
-                if ((now - parseInt(cachedTimestamp)) < 3600000) {
-                  console.log('📊 Using cached dashboard stats')
-                  setStats(parsedData)
-                  setIsLoading(false)
-                  return
-                }
-              } catch (parseError) {
-                console.error('❌ Error parsing cached data:', parseError)
-                console.error('Cached data:', cachedData)
-                // Clear invalid cached data
-                localStorage.removeItem('dashboardStats')
-                localStorage.removeItem('dashboardStatsTimestamp')
-                localStorage.removeItem('dashboardStatsVersion')
-              }
-            }
-
-            // Otherwise fetch new data
-            console.log('🔄 Fetching new dashboard stats...')
-            const data = await fetchDefaultComparison()
-            
-            try {
-              // Test the data before setting it
-              const testString = JSON.stringify(data)
-              const testParse = JSON.parse(testString)
-              console.log('✅ Data validation successful')
-              
-              setStats(data)
-              
-              // Cache the new data if we're in the browser
-              localStorage.setItem('dashboardStats', testString)
-              localStorage.setItem('dashboardStatsTimestamp', new Date().getTime().toString())
-              localStorage.setItem('dashboardStatsVersion', CACHE_VERSION)
-            } catch (validationError) {
-              console.error('❌ Error validating new data:', validationError)
-              console.error('Problematic data:', data)
-              throw validationError
-            }
-          } catch (error) {
-            console.error("❌ Error in fetchData:", error)
-            // If we have mock stats, use them as fallback
-            if (mockStats) {
-              console.log('⚠️ Using mock stats as fallback')
-              setStats(mockStats)
-              // Show error message to user
-              alert('⚠️ There was an error loading your YouTube data. Showing sample data instead. Please try refreshing the page.')
-            }
-          } finally {
-            setIsLoading(false)
-          }
-        }
-        fetchData()
-      }
-    } else {
-      setIsLoading(false)
+    if (error && stats) {
+      console.warn("Using fallback data due to error:", error.message)
     }
-  }, [isLoggedIn, isSampleUser])
+  }, [error, stats])
 
-  // If not logged in and not loading, don't render the page content
   if (!isLoggedIn && !isLoading) {
     return null
   }
@@ -474,66 +445,173 @@ export default function DashboardPage() {
                   </AnimatedCard>
                 </div>
 
-                <div className="mt-8 grid gap-6 md:grid-cols-2">
-                  <AnimatedCard delay={400}>
-                  <Card className="card-hover">
-                    <CardHeader>
-                      <CardTitle>Top Categories</CardTitle>
-                      <CardDescription>What you watched the most</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {stats?.primaryYear?.categoryStats?.slice(0, 6).map((category: CategoryStats, index: number) => (
-                          <div key={category.name} className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="h-3 w-3 rounded-full" style={{
-                                  backgroundColor: `hsl(${index * 30}, 70%, 50%)`
-                                }} />
-                                <span>{category.name}</span>
-                              </div>
-                              <span className="text-sm font-medium">{category.percentage.toFixed(1)}%</span>
+                <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {/* Tabbed Categories & Creators - takes 2 columns on lg */}
+                  <AnimatedCard delay={400} className="md:col-span-1 lg:col-span-2">
+                    <Card className="h-full min-h-[380px]">
+                      <Tabs defaultValue="categories" className="h-full flex flex-col">
+                        <CardHeader className="pb-0">
+                          <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="categories" className="gap-2">
+                              <Tv className="h-4 w-4" />
+                              Top Categories
+                            </TabsTrigger>
+                            <TabsTrigger value="creators" className="gap-2">
+                              <Star className="h-4 w-4" />
+                              Top Creators
+                            </TabsTrigger>
+                          </TabsList>
+                        </CardHeader>
+                        <CardContent className="flex-1 pt-6 overflow-hidden">
+                          <TabsContent value="categories" className="mt-0 h-full">
+                            <div className="space-y-3">
+                              {stats?.primaryYear?.categoryStats?.slice(0, 5).map((category: CategoryStats, index: number) => {
+                                const colors = CATEGORY_COLORS[index % CATEGORY_COLORS.length]
+                                return (
+                                  <div 
+                                    key={category.name} 
+                                    className="group flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                                  >
+                                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted">
+                                      {CATEGORY_ICONS[category.name] || <Film className="h-4 w-4" />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-medium truncate">{category.name}</span>
+                                        <span className="text-sm text-muted-foreground ml-2">{category.watchTime.toFixed(1)}h</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                                          <div 
+                                            className={`h-full ${colors.bar} rounded-full transition-all duration-500`}
+                                            style={{ width: `${category.percentage}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-xs font-medium w-12 text-right">{category.percentage.toFixed(1)}%</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )
+                              })}
                             </div>
-                            <Progress value={category.percentage} className="h-2" />
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                          </TabsContent>
+                          <TabsContent value="creators" className="mt-0 h-full">
+                            <div className="space-y-3">
+                              {(() => {
+                                const maxWatchTime = Math.max(
+                                  ...stats.primaryYear.topCreators.map(c => c.watchTime)
+                                )
+                                return stats.primaryYear.topCreators.map((creator, index) => {
+                                  const comparisonCreator = stats.comparisonYear?.topCreators.find(
+                                    c => c.name === creator.name
+                                  )
+                                  return (
+                                    <CreatorCard 
+                                      key={creator.name} 
+                                      creator={creator} 
+                                      rank={index + 1}
+                                      comparisonCreator={comparisonCreator}
+                                      maxWatchTime={maxWatchTime}
+                                    />
+                                  )
+                                })
+                              })()}
+                            </div>
+                          </TabsContent>
+                        </CardContent>
+                      </Tabs>
+                    </Card>
                   </AnimatedCard>
 
+                  {/* Marathon Session Card */}
                   <AnimatedCard delay={500}>
-                  <Card className="card-hover">
-                    <CardHeader>
-                      <CardTitle>Top Creators</CardTitle>
-                      <CardDescription>Channels you watched the most</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {(() => {
-                          // Find the maximum watch time among current year's top creators
-                          const maxWatchTime = Math.max(
-                            ...stats.primaryYear.topCreators.map(c => c.watchTime)
-                          )
+                    <Card className="card-hover h-full min-h-[380px] relative overflow-hidden flex flex-col">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/20 to-transparent rounded-bl-full" />
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-orange-500/10">
+                            <Flame className="h-5 w-5 text-orange-500" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-lg">Marathon Mode 🍿</CardTitle>
+                            <CardDescription>Your longest viewing session</CardDescription>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="flex-1 flex flex-col overflow-hidden">
+                        {/* Top section - Stats (centered in its half) */}
+                        <div className="flex-1 flex flex-col justify-center">
+                          <div>
+                            <p className="text-4xl font-bold text-orange-500">
+                              {stats?.primaryYear?.longestSession?.duration?.toFixed(1) || "0"}
+                              <span className="text-lg font-normal text-muted-foreground ml-1">hours</span>
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {getMarathonComparison(stats?.primaryYear?.longestSession?.duration || 0)}
+                            </p>
+                          </div>
                           
-                          return stats.primaryYear.topCreators.map((creator, index) => {
-                            const comparisonCreator = stats.comparisonYear?.topCreators.find(
-                              c => c.name === creator.name
-                            )
-                            return (
-                              <CreatorCard 
-                                key={creator.name} 
-                                creator={creator} 
-                                rank={index + 1}
-                                comparisonCreator={comparisonCreator}
-                                maxWatchTime={maxWatchTime}
-                              />
-                            )
-                          })
-                        })()}
-                      </div>
-                    </CardContent>
-                  </Card>
+                          <div className="flex items-center gap-4 mt-3">
+                            {stats?.primaryYear?.longestSession?.date && (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Timer className="h-4 w-4" />
+                                <span>
+                                  {new Date(stats.primaryYear.longestSession.date).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                  })}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {stats?.primaryYear?.longestSession?.category && (
+                              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50 text-sm">
+                                {CATEGORY_ICONS[stats.primaryYear.longestSession.category] || <Tv className="h-3 w-3" />}
+                                <span>{stats.primaryYear.longestSession.category}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Bottom section - Videos (centered in its half) */}
+                        {stats?.primaryYear?.longestSession?.videos && stats.primaryYear.longestSession.videos.length > 0 && (
+                          <div className="flex-1 flex flex-col justify-center border-t pt-3">
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Videos from this session ({stats.primaryYear.longestSession.videos.length}):
+                            </p>
+                            <div className="flex gap-2 overflow-x-auto pb-1 scroll-container">
+                              {stats.primaryYear.longestSession.videos.slice(0, 10).map((video, index) => (
+                                <a 
+                                  key={`${video.videoId}-${index}`}
+                                  href={`https://www.youtube.com/watch?v=${video.videoId}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="group flex-shrink-0 w-36"
+                                >
+                                  <div className="relative aspect-video rounded overflow-hidden bg-muted">
+                                    <Image
+                                      src={`https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`}
+                                      alt={video.title}
+                                      fill
+                                      className="object-cover transition-transform duration-200 group-hover:scale-105"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <div className="bg-black/60 rounded-full p-1.5">
+                                        <Play className="h-3 w-3 text-white" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <p className="text-xs font-medium mt-1 line-clamp-1 group-hover:text-primary transition-colors">
+                                    {video.title}
+                                  </p>
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                   </AnimatedCard>
                 </div>
 
@@ -665,21 +743,26 @@ export default function DashboardPage() {
                 </div>
                 </AnimatedCard>
 
-                {/* <div className="mt-8">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Video Tags</CardTitle>
-                      <CardDescription>Most common tags in your watched videos</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <WordCloudComponent
-                        tags={stats?.primaryYear?.tags || []}
-                      />
-                    </CardContent>
-                  </Card>
-                </div> */}
+                {/* Word Cloud - Video Tags */}
+                {stats?.primaryYear?.tags && stats.primaryYear.tags.length > 0 && (
+                  <AnimatedCard delay={700}>
+                    <div className="mt-8">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Your Video DNA 🧬</CardTitle>
+                          <CardDescription>Most common tags from your watched videos</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <WordCloudComponent
+                            tags={stats.primaryYear.tags}
+                          />
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </AnimatedCard>
+                )}
 
-                <AnimatedCard delay={700}>
+                <AnimatedCard delay={800}>
                 <div className="mt-12 text-center">
                   <ShareStats
                     stats={{

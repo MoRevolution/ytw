@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import WordCloud from 'react-d3-cloud';
 import type { WordData } from 'react-d3-cloud';
 
@@ -8,24 +8,41 @@ interface WordCloudProps {
   tags: string[];
 }
 
-// Color palette similar to the example image
+// Color palette - vibrant but readable
 const COLORS = [
-  '#bada55', // yellow-green
-  '#ff6666', // red
-  '#ffe066', // yellow
-  '#666666', // gray
-  '#a3e635', // light green
-  '#f87171', // light red
-  '#facc15', // gold
-  '#64748b', // blue-gray
-  '#fbbf24', // orange
-  '#eab308', // dark yellow
+  '#ef4444', // red
+  '#f97316', // orange
+  '#eab308', // yellow
+  '#22c55e', // green
+  '#06b6d4', // cyan
+  '#3b82f6', // blue
+  '#8b5cf6', // violet
+  '#ec4899', // pink
+  '#14b8a6', // teal
+  '#f59e0b', // amber
 ];
 
-// 5 orientations from -60 to 60 degrees
-const ORIENTATIONS = [-60, -30, 0, 30, 60];
+// Orientations for visual interest
+const ORIENTATIONS = [-45, -30, 0, 30, 45];
 
 export function WordCloudComponent({ tags }: WordCloudProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 600, height: 350 });
+
+  // Responsive sizing
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const width = containerRef.current.offsetWidth;
+        const height = Math.min(400, Math.max(300, width * 0.5));
+        setDimensions({ width, height });
+      }
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
   // Process tags into word frequencies
   const wordFrequencies = useMemo(() => {
     const frequencies: Record<string, number> = {};
@@ -43,41 +60,46 @@ export function WordCloudComponent({ tags }: WordCloudProps) {
       .slice(0, 250); // Show up to 250 words
   }, [wordFrequencies]);
 
-  // Logarithmic font size scale
+  // Logarithmic font size scale - adjusted for container size
   const fontSize = (word: WordData) => {
-    const minSize = 18;
-    const maxSize = 80;
+    const scaleFactor = dimensions.width / 800;
+    const minSize = Math.max(12, 16 * scaleFactor);
+    const maxSize = Math.max(32, 60 * scaleFactor);
     const minValue = Math.min(...words.map(w => w.value));
     const maxValue = Math.max(...words.map(w => w.value));
     if (minValue === maxValue) return (minSize + maxSize) / 2;
-    // log scale
     const logMin = Math.log(minValue || 1);
     const logMax = Math.log(maxValue);
     const logValue = Math.log(word.value);
     return minSize + ((logValue - logMin) / (logMax - logMin)) * (maxSize - minSize);
   };
 
-  // 5 orientations from -60 to 60
   const rotate = () => ORIENTATIONS[Math.floor(Math.random() * ORIENTATIONS.length)];
-
-  // Color by index (cycle through palette)
   const fill = (_word: WordData, index: number) => COLORS[index % COLORS.length];
 
-  return (
-    <div className="h-[500px] w-full flex items-center justify-center">
-      <div className="w-[900px] h-[450px]">
-        <WordCloud
-          data={words}
-          fontSize={fontSize}
-          rotate={rotate}
-          padding={2}
-          random={Math.random}
-          font="Impact"
-          fontWeight="bold"
-          spiral="archimedean"
-          fill={fill}
-        />
+  if (tags.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+        No tags available
       </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="w-full" style={{ height: dimensions.height }}>
+      <WordCloud
+        data={words}
+        width={dimensions.width}
+        height={dimensions.height}
+        fontSize={fontSize}
+        rotate={rotate}
+        padding={3}
+        random={Math.random}
+        font="system-ui"
+        fontWeight="600"
+        spiral="archimedean"
+        fill={fill}
+      />
     </div>
   );
 } 

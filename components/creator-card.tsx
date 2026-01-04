@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import Image from "next/image"
-import { Clock } from "lucide-react"
 
 import { Progress } from "@/components/ui/progress"
 import { CreatorStats } from "@/lib/fetch-creators-data"
@@ -30,8 +29,8 @@ export function CreatorCard({ creator, rank, maxWatchTime, comparisonCreator }: 
   }, [creator.channelId])
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="h-10 w-10 rounded-full bg-muted overflow-hidden">
+    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+      <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex-shrink-0">
         <Image
           src={thumbnailUrl}
           alt={`${creator.name} avatar`}
@@ -40,23 +39,19 @@ export function CreatorCard({ creator, rank, maxWatchTime, comparisonCreator }: 
           className="rounded-full object-cover"
         />
       </div>
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <p className="font-medium">{creator.name}</p>
-          <div className="flex items-center gap-1">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">{creator.watchTime.toFixed(1)} hours</span>
-          </div>
+          <p className="font-medium truncate">{creator.name}</p>
+          <span className="text-sm text-muted-foreground ml-2">{creator.watchTime.toFixed(1)}h</span>
         </div>
-        <Progress value={progressValue} className="mt-2 h-2" />
-        {comparisonCreator && (
-          <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-            <span>{comparisonCreator.watchTime.toFixed(1)} hours last year</span>
-            <span className={creator.watchTime > comparisonCreator.watchTime ? "text-green-500" : "text-red-500"}>
+        <div className="flex items-center gap-2 mt-1">
+          <Progress value={progressValue} className="flex-1 h-2" />
+          {comparisonCreator && (
+            <span className={`text-xs font-medium w-12 text-right ${creator.watchTime > comparisonCreator.watchTime ? "text-green-500" : "text-red-500"}`}>
               {Math.round(((creator.watchTime - comparisonCreator.watchTime) / comparisonCreator.watchTime) * 100)}%
             </span>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )

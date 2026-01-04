@@ -183,31 +183,44 @@ function extractTagsFromEntries(entries: WatchHistoryEntry[]): string[] {
 }
 
 function calculateLongestSession(entries: WatchHistoryEntry[]): DashboardStats['longestSession'] {
+  if (entries.length === 0) {
+    return {
+      duration: 0,
+      date: '',
+      category: 'Unknown',
+      videos: []
+    }
+  }
+
   // Sort entries by time watched
   const sortedEntries = [...entries].sort((a, b) => 
     new Date(a.time_watched).getTime() - new Date(b.time_watched).getTime()
   )
 
-  let currentSession: WatchHistoryEntry[] = []
+  let currentSession: WatchHistoryEntry[] = [sortedEntries[0]]
   let longestSession: WatchHistoryEntry[] = []
-  let currentStartTime = new Date(sortedEntries[0].time_watched)
+  let previousEntryTime = new Date(sortedEntries[0].time_watched)
   
-  // 30 minutes in milliseconds
+  // 30 minutes gap between consecutive videos = new session
   const SESSION_GAP = 30 * 60 * 1000
 
-  for (const entry of sortedEntries) {
+  for (let i = 1; i < sortedEntries.length; i++) {
+    const entry = sortedEntries[i]
     const entryTime = new Date(entry.time_watched)
-    const timeDiff = entryTime.getTime() - currentStartTime.getTime()
+    const timeSincePreviousEntry = entryTime.getTime() - previousEntryTime.getTime()
 
-    if (timeDiff <= SESSION_GAP) {
+    if (timeSincePreviousEntry <= SESSION_GAP) {
+      // Still in the same session - add to current session
       currentSession.push(entry)
     } else {
+      // Gap too large - check if current session is longest, then start new one
       if (currentSession.length > longestSession.length) {
         longestSession = [...currentSession]
       }
       currentSession = [entry]
-      currentStartTime = entryTime
     }
+    // Always update previous entry time for next comparison
+    previousEntryTime = entryTime
   }
 
   // Check the last session
