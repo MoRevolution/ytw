@@ -1,8 +1,9 @@
 import { processAndStoreWatchHistoryByYear} from "./indexeddb"
+import { logger } from "./logger"
 
 async function fetchWatchHistory(accessToken: string) {
   try {
-    console.log("🔑 Using access token:", accessToken ? "Token present" : "No token");
+    console.log("Using access token:", accessToken ? "Token present" : "No token");
     
     const response = await fetch('/api/fetch-watch-history', {
       method: 'POST',
@@ -14,7 +15,7 @@ async function fetchWatchHistory(accessToken: string) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("❌ API Response error:", {
+      logger.error("API Response error:", {
         status: response.status,
         statusText: response.statusText,
         body: errorText
@@ -31,7 +32,7 @@ async function fetchWatchHistory(accessToken: string) {
     const { data } = await response.json();
     return data;
   } catch (error: any) {
-    console.error("❌ Error in fetchWatchHistory:", {
+    logger.error("Error in fetchWatchHistory:", {
       message: error.message,
       stack: error.stack,
       name: error.name
@@ -45,7 +46,7 @@ export async function fetchAndProcessWatchHistory(accessToken: string, userId: s
     // Fetch watch history from YouTube API
     try {
       const watchHistory = await fetchWatchHistory(accessToken);
-      console.log("🔄 Processing and storing watch history data by year");
+      console.log("Processing and storing watch history data by year");
       await processAndStoreWatchHistoryByYear(watchHistory);
     } catch (error: any) {
       if (error.message === 'NO_TAKEOUT_FOLDER') {
@@ -57,7 +58,7 @@ export async function fetchAndProcessWatchHistory(accessToken: string, userId: s
     }
     
     // Update watch history status
-    console.log("🔄 Updating watch history status...");
+    console.log("Updating watch history status...");
     const statusResponse = await fetch('/api/users/update-history-status', {
       method: 'POST',
       headers: {
@@ -71,7 +72,7 @@ export async function fetchAndProcessWatchHistory(accessToken: string, userId: s
 
     if (!statusResponse.ok) {
       const errorText = await statusResponse.text();
-      console.error("❌ Failed to update watch history status:", {
+      logger.error("Failed to update watch history status:", {
         status: statusResponse.status,
         statusText: statusResponse.statusText,
         body: errorText
@@ -79,10 +80,10 @@ export async function fetchAndProcessWatchHistory(accessToken: string, userId: s
       throw new Error(`Failed to update watch history status: ${statusResponse.status}`);
     }
 
-    console.log("✅ Watch history data processed and stored successfully");
+    console.log("Watch history data processed and stored successfully");
     return true;
   } catch (error) {
-    console.error("❌ Error in fetchAndProcessWatchHistory:", error);
+    logger.error("Error in fetchAndProcessWatchHistory:", error);
     throw error;
   }
 } 
