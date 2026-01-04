@@ -162,8 +162,19 @@ export default function HomePage() {
                   <p className="text-sm text-muted-foreground mt-2">42.3 hours watched</p>
                   <div className="mt-4 flex items-center gap-3">
                     <div className="flex -space-x-2">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-muted to-muted-foreground/20 border-2 border-card" />
+                      {[
+                        { name: 'MKBHD', img: 'https://yt3.ggpht.com/qu4TmIaYUlS41-dJ9gZ7DUR3nilvmB5_11i6OKSdvNnBNiyOusZP1bMN6ICnuxtjFBb6ioKgRQ=s88-c-k-c0x00ffffff-no-rj' },
+                        { name: 'Veritasium', img: 'https://yt3.googleusercontent.com/7vCbvtCqtjQ3YLgsJt7Y952MQV1sBvhllSCSxHP8_sVZdcPCBrITfhkN2RdyCuwPnsByq-1GoA=s160-c-k-c0x00ffffff-no-rj' },
+                        { name: 'PewDiePie', img: 'https://yt3.googleusercontent.com/vik8mAiwHQbXiFyKfZ3__p55_VBdGvwxPpuPJBBwdbF0PjJxikXhrP-C3nLQAMAxGNd_-xQCIg=s160-c-k-c0x00ffffff-no-rj' },
+                        { name: 'The PrimeTime', img: 'https://yt3.googleusercontent.com/Eu_xR4JfLlrruwj1lrmfDiOpe8GARBs8M0hgQ6NsGhQ0qC8S-po9HEHw1W21sPN2BHO6EHXrSwM=s160-c-k-c0x00ffffff-no-rj' },
+                        { name: 'Good Work', img: 'https://yt3.googleusercontent.com/Uj7Ky8T7owxiMSQCDLeEaeD-x0rJYkt7e4iqIo8Q8SV3d0yB1UWxo68O4N7Hstmjh-j1J2X3=s160-c-k-c0x00ffffff-no-rj' },
+                      ].map((creator) => (
+                        <img 
+                          key={creator.name} 
+                          src={creator.img} 
+                          alt={creator.name}
+                          className="w-8 h-8 rounded-full border-2 border-card object-cover" 
+                        />
                       ))}
                     </div>
                     <span className="text-sm text-muted-foreground">+307 creators</span>
