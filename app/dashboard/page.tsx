@@ -344,7 +344,7 @@ export default function DashboardPage() {
               <>
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   <AnimatedCard delay={0}>
-                  <Card>
+                  <Card className="card-hover card-hero">
                     <CardHeader className="pb-2">
                       <CardTitle>Total Watch Time</CardTitle>
                       <CardDescription>Hours spent watching videos</CardDescription>
@@ -368,7 +368,7 @@ export default function DashboardPage() {
                   </Card>
                   </AnimatedCard>
                   <AnimatedCard delay={100}>
-                  <Card>
+                  <Card className="card-hover card-hero">
                     <CardHeader className="pb-2">
                       <CardTitle>Videos Watched</CardTitle>
                       <CardDescription>Total number of videos</CardDescription>
@@ -392,7 +392,7 @@ export default function DashboardPage() {
                   </Card>
                   </AnimatedCard>
                   <AnimatedCard delay={200}>
-                  <Card>
+                  <Card className="card-hover card-hero">
                     <CardHeader className="pb-2">
                       <CardTitle>Unique Creators</CardTitle>
                       <CardDescription>Different channels you watched</CardDescription>
@@ -476,7 +476,7 @@ export default function DashboardPage() {
 
                 <div className="mt-8 grid gap-6 md:grid-cols-2">
                   <AnimatedCard delay={400}>
-                  <Card>
+                  <Card className="card-hover">
                     <CardHeader>
                       <CardTitle>Top Categories</CardTitle>
                       <CardDescription>What you watched the most</CardDescription>
@@ -503,7 +503,7 @@ export default function DashboardPage() {
                   </AnimatedCard>
 
                   <AnimatedCard delay={500}>
-                  <Card>
+                  <Card className="card-hover">
                     <CardHeader>
                       <CardTitle>Top Creators</CardTitle>
                       <CardDescription>Channels you watched the most</CardDescription>
