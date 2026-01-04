@@ -67,11 +67,14 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
       
       if (!hasCompleteData) {
         setDataLoadingStatus("Fetching your YouTube watch history...")
-        console.log("📦 Watch history data not found or incomplete, fetching...");
+        console.log("[Login] Watch history data not found or incomplete, fetching...");
         
         try {
+          console.log("[Login] Getting ID token for API call...");
           const idToken = await user.getIdToken();
+          console.log("[Login] ID token obtained, length:", idToken?.length);
           
+          console.log("[Login] Calling /api/users/get-history...");
           const response = await fetch('/api/users/get-history', {
             method: 'GET',
             headers: {
@@ -80,29 +83,74 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
             },
           });
           
+          console.log("[Login] Response status:", response.status);
+          
           if (!response.ok) {
-            throw new Error(`Failed to fetch watch history: ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            console.error("[Login] Error response:", errorData);
+            
+            // Handle specific error types
+            if (errorData.error === 'NO_TAKEOUT_FOLDER') {
+              throw new Error('NO_TAKEOUT: ' + (errorData.message || 'No Takeout export found'));
+            }
+            if (errorData.error === 'TOKEN_ERROR') {
+              throw new Error('TOKEN_ERROR: ' + (errorData.message || 'Please re-login'));
+            }
+            if (errorData.error === 'INVALID_TAKEOUT') {
+              throw new Error('INVALID_TAKEOUT: ' + (errorData.message || 'Takeout missing history'));
+            }
+            
+            throw new Error(`Failed to fetch watch history: ${response.status} - ${errorData.message || errorData.details || 'Unknown error'}`);
           }
           
-          const { data } = await response.json();
+          const responseData = await response.json();
+          console.log("[Login] Response received, has data:", !!responseData.data);
+          
+          const { data } = responseData;
           
           if (!data) {
-            throw new Error("No watch history data available");
+            throw new Error("No watch history data in response");
           }
           
+          console.log("[Login] Processing and storing watch history...");
           // Process and store the watch history data
           await processAndStoreWatchHistoryByYear(data);
+          console.log("[Login] Watch history stored successfully!");
           
           toast({
             title: "Data imported",
             description: "Your YouTube watch history has been successfully imported.",
           });
         } catch (error: any) {
-          console.error("❌ Error:", error.message);
-          toast({
-            title: "Using Sample Data",
-            description: "Could not fetch your watch history. You'll see sample data on the dashboard. Click the refresh button to try again later.",
-          });
+          console.error("[Login] Watch history fetch error:");
+          console.error("[Login] Error message:", error.message);
+          console.error("[Login] Full error:", error);
+          
+          // Show appropriate message based on error type
+          if (error.message.includes('NO_TAKEOUT')) {
+            toast({
+              title: "No Takeout Export Found",
+              description: "Please create a Google Takeout export with your YouTube history first.",
+              variant: "destructive",
+            });
+          } else if (error.message.includes('TOKEN_ERROR')) {
+            toast({
+              title: "Session Error",
+              description: "Please log out and log in again to refresh your session.",
+              variant: "destructive",
+            });
+          } else if (error.message.includes('INVALID_TAKEOUT')) {
+            toast({
+              title: "Invalid Takeout Export",
+              description: "Your Takeout export doesn't contain YouTube history. Please export again with history included.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Using Sample Data",
+              description: "Could not fetch your watch history. You'll see sample data on the dashboard.",
+            });
+          }
           isSampleUser = true;
         }
       } else {

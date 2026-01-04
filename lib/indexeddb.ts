@@ -1,6 +1,7 @@
 import { openDB, IDBPDatabase } from "idb"
 import { getVideosMetadata  } from "./youtube-metadata"
 import { DB_NAME, FILES_STORE, WATCH_HISTORY_FILE, AVAILABLE_YEARS_FILE } from './constants'
+import { logger } from "./logger"
 
 // Current database version - increment this when schema changes
 const DB_VERSION = 1
@@ -15,7 +16,7 @@ async function initDB(): Promise<IDBPDatabase> {
       upgrade(db) {
         // Create object store if it doesn't exist
         if (!db.objectStoreNames.contains(FILES_STORE)) {
-          console.log(`🔄 Creating object store: ${FILES_STORE}`)
+          console.log(`Creating object store: ${FILES_STORE}`)
           db.createObjectStore(FILES_STORE, { keyPath: "fileName" })
         }
       },
@@ -28,7 +29,7 @@ async function initDB(): Promise<IDBPDatabase> {
 
     return db
   } catch (error) {
-    console.error("❌ Database initialization failed:", error)
+    logger.error("Database initialization failed:", error)
     throw error
   }
 }
@@ -41,7 +42,7 @@ export async function isDataInIndexedDB(fileId: string): Promise<boolean> {
     const existingFile = await store.get(fileId)
     return !!existingFile
   } catch (error) {
-    console.error("❌ Error checking IndexedDB:", error)
+    logger.error("Error checking IndexedDB:", error)
     return false
   }
 }
@@ -74,9 +75,9 @@ export async function storeDataInIndexedDB(data: { [key: string]: string }) {
     await Promise.all(putPromises)
     await tx.done
     
-    console.log(`✅ Successfully stored ${Object.keys(data).length} items in IndexedDB`)
+    console.log(`Successfully stored ${Object.keys(data).length} items in IndexedDB`)
   } catch (error: unknown) {
-    console.error("❌ Error storing data in IndexedDB:", error)
+    logger.error("Error storing data in IndexedDB:", error)
     // Add more context to the error
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     const enhancedError = new Error(`Failed to store data in IndexedDB: ${errorMessage}`)
@@ -102,20 +103,20 @@ export async function storeDataInIndexedDB(data: { [key: string]: string }) {
 export async function processAndStoreWatchHistoryByYear(watchHistoryData: any[]) {
   
   // First store the raw data as backup
-  console.log('💾 Storing raw watch history data...')
+  console.log('Storing raw watch history data...')
   await storeDataInIndexedDB({
     [WATCH_HISTORY_FILE]: JSON.stringify(watchHistoryData)
   })
-  console.log('✅ Raw watch history data stored successfully')
+  console.log('Raw watch history data stored successfully')
 
   // Group data by year
   const dataByYear: { [year: string]: any[] } = {}
   const videoIdsByYear: { [year: string]: Set<string> } = {} 
   
-  console.log('📅 Grouping entries by year...')
+  console.log('Grouping entries by year...')
   watchHistoryData.forEach(entry => {
     if (!entry.time) {
-      console.warn('⚠️ Entry missing time:', entry)
+      logger.warn('Entry missing time:', entry)
       return
     }
     
@@ -130,7 +131,7 @@ export async function processAndStoreWatchHistoryByYear(watchHistoryData: any[])
     const videoId = videoIdMatch ? videoIdMatch[1] : null
 
     if (!videoId) {
-      console.warn('⚠️ Could not extract video ID from URL:', entry.titleUrl)
+      logger.warn('Could not extract video ID from URL:', entry.titleUrl)
     }
 
     // Create processed entry
@@ -148,11 +149,11 @@ export async function processAndStoreWatchHistoryByYear(watchHistoryData: any[])
     }
   })
 
-  console.log('📊 Data grouped by year:', Object.keys(dataByYear))
+  console.log('Data grouped by year:', Object.keys(dataByYear))
 
   // Store available years
   const availableYears = Object.keys(dataByYear).map(Number).sort((a, b) => b - a)
-  console.log('📅 Storing available years:', availableYears)
+  console.log('Storing available years:', availableYears)
   await storeDataInIndexedDB({
     [AVAILABLE_YEARS_FILE]: JSON.stringify(availableYears)
   })
@@ -166,17 +167,17 @@ export async function processAndStoreWatchHistoryByYear(watchHistoryData: any[])
     .slice(0, 2) // Take the two most recent
     .map(String) // Convert back to strings
 
-  console.log('🎯 Processing years:', years)
+  console.log('Processing years:', years)
 
   // Fetch metadata for videos from the most recent two complete years
   for (const year of years) {
     const videoIds = Array.from(videoIdsByYear[year])
-    console.log(`📺 Year ${year}: Processing ${videoIds.length} videos`)
+    console.log(`Year ${year}: Processing ${videoIds.length} videos`)
     
     if (videoIds.length > 0) {
-      console.log(`🔄 Fetching metadata for ${videoIds.length} videos in ${year}...`)
+      console.log(`Fetching metadata for ${videoIds.length} videos in ${year}...`)
       const metadataMap = await getVideosMetadata(videoIds)
-      console.log(`✅ Retrieved metadata for ${metadataMap.size} videos in ${year}`)
+      console.log(`Retrieved metadata for ${metadataMap.size} videos in ${year}`)
       
       // Update entries with metadata
       let updatedCount = 0
@@ -198,12 +199,12 @@ export async function processAndStoreWatchHistoryByYear(watchHistoryData: any[])
         }
         return entry
       })
-      console.log(`📊 Year ${year}: Updated ${updatedCount} entries, skipped ${skippedCount}`)
+      console.log(`Year ${year}: Updated ${updatedCount} entries, skipped ${skippedCount}`)
     }
   }
 
   // Store all year data in a single transaction
-  console.log('💾 Storing processed data...')
+  console.log('Storing processed data...')
   await storeDataInIndexedDB(
     Object.fromEntries(
       Object.entries(dataByYear).map(([year, data]) => [
@@ -213,7 +214,7 @@ export async function processAndStoreWatchHistoryByYear(watchHistoryData: any[])
     )
   )
   
-  console.log('✅ Watch history processing complete!')
+  console.log('Watch history processing complete!')
 }
 
 export async function isWatchHistoryDataComplete(): Promise<boolean> {
@@ -221,14 +222,14 @@ export async function isWatchHistoryDataComplete(): Promise<boolean> {
     // Check for main watch history file
     const hasMainData = await isDataInIndexedDB(WATCH_HISTORY_FILE);
     if (!hasMainData) {
-      console.log("❌ Main watch history file not found");
+      console.log("Main watch history file not found");
       return false;
     }
     
     // Get available years from IndexedDB
     const availableYearsData = await isDataInIndexedDB(AVAILABLE_YEARS_FILE);
     if (!availableYearsData) {
-      console.log("❌ Available years data not found");
+      console.log("Available years data not found");
       return false;
     }
 
@@ -238,13 +239,13 @@ export async function isWatchHistoryDataComplete(): Promise<boolean> {
     const data = await store.get(AVAILABLE_YEARS_FILE);
     
     if (!data) {
-      console.log("❌ Could not read available years data");
+      console.log("Could not read available years data");
       return false;
     }
 
     const years = JSON.parse(data.content);
     if (!Array.isArray(years) || years.length === 0) {
-      console.log("❌ No available years found");
+      console.log("No available years found");
       return false;
     }
     
@@ -255,14 +256,14 @@ export async function isWatchHistoryDataComplete(): Promise<boolean> {
     
     const allYearsExist = yearFilesExist.every(exists => exists);
     if (!allYearsExist) {
-      console.log("❌ Not all year files exist");
+      console.log("Not all year files exist");
       return false;
     }
 
-    console.log("✅ All watch history data is complete");
+    console.log("All watch history data is complete");
     return true;
   } catch (error) {
-    console.error("❌ Error checking watch history data completeness:", error);
+    logger.error("Error checking watch history data completeness:", error);
     return false;
   }
 } 
