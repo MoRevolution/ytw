@@ -1,6 +1,7 @@
 import { openDB } from "idb"
 import { DB_NAME, FILES_STORE } from './constants'
 import { youtubeCategories } from './youtube-categories'
+import { logger } from "./logger"
 
 interface VideoStats {
   videoId: string

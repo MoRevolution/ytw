@@ -36,6 +36,8 @@ import { getChannelThumbnailCached } from "@/lib/youtube-api"
 import { WordCloudComponent } from "@/components/word-cloud"
 import { CreatorCard } from "@/components/creator-card"
 
+
+
 // Mock stats for sample user
 const mockStats = {
   primaryYear: {
