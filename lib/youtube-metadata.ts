@@ -1,334 +1,199 @@
-import { deflateSync, unzipSync } from "zlib";
-import { Buffer } from "buffer";
-import { Redis } from "@upstash/redis";
+/**
+ * Client-side metadata fetching with local cache + server API
+ * 
+ * Flow:
+ * 1. Check local IndexedDB cache first (instant)
+ * 2. Call server API for missing videos (API handles Redis cache + YouTube API)
+ * 3. Store results in local IndexedDB for next time
+ */
 
-const redis = new Redis({
-  url: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL!,
-  token: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN!,
-});
+import { openDB, type IDBPDatabase } from 'idb';
+import type { YouTubeVideoMetadata, MetadataResponse } from '@/types/youtube';
 
-interface YouTubeVideoMetadata {
-  video_id: string;
-  title: string;
-  channel: string;
-  category_id: string;
-  published_at: string;
-  tags: string[];
-  view_count: number;
-  like_count: number;
-  comment_count: number;
-  made_for_kids: boolean;
-  duration: string;
+// Re-export type for convenience
+export type { YouTubeVideoMetadata };
+
+// IndexedDB configuration
+const DB_NAME = 'youtube-metadata-cache';
+const STORE_NAME = 'metadata';
+const DB_VERSION = 1;
+
+/**
+ * Get or create the IndexedDB database
+ */
+async function getDB(): Promise<IDBPDatabase> {
+  return openDB(DB_NAME, DB_VERSION, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+        console.log('[Metadata] Created local cache store');
+      }
+    },
+  });
 }
 
-// TODO: not needed any more, remove when cleaning up
-export async function getVideoMetadata(
-  videoId: string
-): Promise<YouTubeVideoMetadata | null> {
-  try {
-    const cachedData = await redis.get(videoId);
-    if (cachedData) {
-      const decodedBytes = Buffer.from(cachedData as string, "base64");
-      const decompressedData = unzipSync(decodedBytes);
-      return JSON.parse(decompressedData.toString("utf-8"));
-    }
+/**
+ * Read metadata from local IndexedDB cache
+ */
+async function getFromLocalCache(videoIds: string[]): Promise<Map<string, YouTubeVideoMetadata>> {
+  const result = new Map<string, YouTubeVideoMetadata>();
 
-    // If not in cache, fetch from YouTube API
-    const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/videos?` +
-        `part=snippet,statistics,contentDetails&` +
-        `id=${videoId}&` +
-        `key=${process.env.YOUTUBE_API_KEY}&` +
-        `fields=items(` +
-        `id,snippet(` +
-        `title,channelTitle,categoryId,publishedAt,tags` +
-        `),` +
-        `statistics(` +
-        `viewCount,likeCount,commentCount` +
-        `),` +
-        `contentDetails/duration` +
-        `)`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
+  try {
+    const db = await getDB();
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+
+    await Promise.all(
+      videoIds.map(async (id) => {
+        const cached = await store.get(id) as YouTubeVideoMetadata | undefined;
+        if (cached) {
+          result.set(id, cached);
+        }
+      })
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch video metadata");
-    }
-
-    const data = await response.json();
-    if (!data.items || data.items.length === 0) {
-      return null;
-    }
-
-    const video = data.items[0];
-    const metadata: YouTubeVideoMetadata = {
-      video_id: videoId,
-      title: video.snippet?.title || "",
-      channel: video.snippet?.channelTitle || "",
-      category_id: video.snippet?.categoryId || "",
-      published_at: video.snippet?.publishedAt || "",
-      tags: video.snippet?.tags || [],
-      view_count: parseInt(video.statistics?.viewCount || "0"),
-      like_count: parseInt(video.statistics?.likeCount || "0"),
-      comment_count: parseInt(video.statistics?.commentCount || "0"),
-      made_for_kids:
-        video.contentDetails?.contentRating?.ytRating === "ytAgeRestricted" ||
-        false,
-      duration: video.contentDetails?.duration || "",
-    };
-
-    const compressedEntry = deflateSync(JSON.stringify(metadata));
-    const encodedEntry = Buffer.from(compressedEntry).toString("base64");
-    await redis.set(videoId, encodedEntry);
-
-    return metadata;
+    await tx.done;
   } catch (error) {
-    console.error("Error fetching video metadata:", error);
-    return null;
+    console.warn('[Metadata] Local cache read error:', error);
+  }
+
+  return result;
+}
+
+/**
+ * Save metadata to local IndexedDB cache
+ */
+async function saveToLocalCache(entries: Map<string, YouTubeVideoMetadata>): Promise<void> {
+  if (entries.size === 0) return;
+
+  try {
+    const db = await getDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+
+    for (const [id, metadata] of entries) {
+      await store.put(metadata, id);
+    }
+
+    await tx.done;
+    console.log(`[Metadata] Saved ${entries.size} to local cache`);
+  } catch (error) {
+    console.warn('[Metadata] Local cache write error:', error);
   }
 }
 
+/**
+ * Fetch metadata from server API (which handles Redis + YouTube API)
+ */
+async function fetchFromServer(videoIds: string[]): Promise<Map<string, YouTubeVideoMetadata>> {
+  const result = new Map<string, YouTubeVideoMetadata>();
+
+  if (videoIds.length === 0) return result;
+
+  try {
+    // Split into chunks to avoid huge requests
+    const CHUNK_SIZE = 500;
+    
+    for (let i = 0; i < videoIds.length; i += CHUNK_SIZE) {
+      const chunk = videoIds.slice(i, i + CHUNK_SIZE);
+      
+      const response = await fetch('/api/videos/metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoIds: chunk }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        console.error('[Metadata] Server API error:', response.status, error);
+        continue;
+      }
+
+      const data: MetadataResponse = await response.json();
+      
+      for (const [id, metadata] of Object.entries(data.metadata)) {
+        result.set(id, metadata);
+      }
+
+      console.log(`[Metadata] Server chunk ${Math.floor(i / CHUNK_SIZE) + 1}: ${data.cached} cached, ${data.fetched} fetched`);
+    }
+  } catch (error) {
+    console.error('[Metadata] Server API error:', error);
+  }
+
+  return result;
+}
+
+/**
+ * Get metadata for multiple videos
+ * 
+ * Uses multi-tier caching:
+ * 1. Local IndexedDB (fastest, per-user)
+ * 2. Server API which uses Redis (shared across users) + YouTube API
+ * 
+ * Never throws - returns partial results on error
+ */
 export async function getVideosMetadata(
   videoIds: string[]
 ): Promise<Map<string, YouTubeVideoMetadata>> {
-  console.log(`📥 Fetching metadata for ${videoIds.length} videos...`);
+  const startTime = Date.now();
+  console.log(`[Metadata] Starting fetch for ${videoIds.length} videos`);
 
+  // Deduplicate
+  const uniqueIds = [...new Set(videoIds)];
   const metadataMap = new Map<string, YouTubeVideoMetadata>();
-  const missingIds: string[] = [];
-  let errorCount = 0;
-  const MAX_ERRORS = 5; // Maximum number of errors before stopping
 
   try {
-    // Fetch all video metadata at once using MGET
-    console.log(`🔄 Fetching metadata for ${videoIds.length} videos from Redis...`);
-    const CHUNK_SIZE = 500;
-    const CONCURRENT_CHUNKS = 5; // Number of chunks to process at once
-    const chunks = [];
-    const allCachedData: (string | null)[] = [];
-
-    // Split videoIds into chunks of 1000
-    for (let i = 0; i < videoIds.length; i += CHUNK_SIZE) {
-      chunks.push(videoIds.slice(i, i + CHUNK_SIZE));
+    // Step 1: Check local cache
+    const localCached = await getFromLocalCache(uniqueIds);
+    console.log(`[Metadata] Local cache: ${localCached.size}/${uniqueIds.length}`);
+    
+    for (const [id, metadata] of localCached) {
+      metadataMap.set(id, metadata);
     }
 
-    console.log(`📦 Processing ${chunks.length} chunks of ${CHUNK_SIZE} videos each (${CONCURRENT_CHUNKS} concurrent)...`);
-
-    // Process chunks in groups with controlled concurrency
-    for (let i = 0; i < chunks.length; i += CONCURRENT_CHUNKS) {
-      const currentChunks = chunks.slice(i, i + CONCURRENT_CHUNKS);
-      console.log(`🔄 Processing chunks ${i + 1}-${Math.min(i + CONCURRENT_CHUNKS, chunks.length)}/${chunks.length}...`);
-
-      try {
-        // Execute multiple MGET operations concurrently
-        const chunkResults = await Promise.all(
-          currentChunks.map(async (chunk, chunkIndex) => {
-            const chunkData = await redis.mget(...chunk) as (string | null)[];
-            if (!chunkData) {
-              throw new Error(`Redis MGET returned no data for chunk ${i + chunkIndex + 1}`);
-            }
-            return chunkData;
-          })
-        );
-
-        // Combine results
-        chunkResults.forEach(result => {
-          allCachedData.push(...result);
-        });
-
-        // Add delay between groups of chunks except for the last group
-        if (i + CONCURRENT_CHUNKS < chunks.length) {
-          console.log(`⏳ Waiting 1 second before next group of chunks...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      } catch (error: any) {
-        console.error("❌ Redis MGET Error:", {
-          error: error.message,
-          stack: error.stack,
-          chunkGroup: `${i + 1}-${Math.min(i + CONCURRENT_CHUNKS, chunks.length)}`,
-          totalChunks: chunks.length,
-          videoCount: currentChunks.reduce((sum, chunk) => sum + chunk.length, 0)
-        });
-        throw new Error("Failed to retrieve data from Redis: " + error.message);
-      }
-    }
-
-    // Process the results
-    allCachedData.forEach((data, index) => {
-      const videoId = videoIds[index];
-      
-      if (!data) {
-        missingIds.push(videoId);
-        return;
-      }
-
-      try {
-        const decodedBytes = Buffer.from(data as string, "base64");
-        const decompressedData = unzipSync(decodedBytes);
-        const jsonString = decompressedData.toString('utf8');
-        const metadata = JSON.parse(jsonString);
-        metadataMap.set(videoId, metadata);
-      } catch (parseError) {
-        errorCount++;
-        if (errorCount <= MAX_ERRORS) {
-          console.error(`❌ Error processing video ${videoId}:`, parseError);
-        }
-        if (errorCount >= MAX_ERRORS) {
-          throw new Error(`Too many errors (${errorCount}) while processing videos. Stopping...`);
-        }
-        missingIds.push(videoId);
-      }
-    });
-
-    console.log(`📊 Found ${metadataMap.size} videos in cache, ${missingIds.length} to fetch from YouTube API`);
-    if (errorCount > 0) {
-      console.log(`⚠️ Encountered ${errorCount} errors while processing videos`);
-    }
-
-    // If we have videos to fetch from YouTube API
+    // Step 2: Fetch missing from server
+    const missingIds = uniqueIds.filter(id => !metadataMap.has(id));
+    
     if (missingIds.length > 0) {
-      // YouTube API has a limit of 50 videos per request
-      const BATCH_SIZE = 50;
-      const CONCURRENCY_LIMIT = 5; 
-      const batches = [];
-      const cacheEntries: Record<string, string> = {};
+      console.log(`[Metadata] Fetching ${missingIds.length} from server...`);
       
-      for (let i = 0; i < missingIds.length; i += BATCH_SIZE) {
-        batches.push(missingIds.slice(i, i + BATCH_SIZE));
+      const serverData = await fetchFromServer(missingIds);
+      
+      for (const [id, metadata] of serverData) {
+        metadataMap.set(id, metadata);
       }
 
-      console.log(`🔄 Fetching ${batches.length} batches of videos from YouTube API (${CONCURRENCY_LIMIT} concurrent)...`);
-
-      // Process batches with controlled concurrency
-      const processBatch = async (batch: string[], index: number) => {
-        console.log(`📦 Processing batch ${index + 1}/${batches.length} (${batch.length} videos)`);
-
-        try {
-          const response = await fetch(
-            `https://www.googleapis.com/youtube/v3/videos?` +
-              `part=snippet,statistics,contentDetails&` +
-              `id=${batch.join(",")}&` +
-              `key=${process.env.NEXT_PUBLIC_YOUTUBE_API_KEY}&` +
-              `fields=items(` +
-              `id,snippet(` +
-              `title,channelTitle,categoryId,publishedAt,tags` +
-              `),` +
-              `statistics(` +
-              `viewCount,likeCount,commentCount` +
-              `),` +
-              `contentDetails/duration` +
-              `)`,
-            {
-              headers: {
-                "Content-Type": "application/json",
-              },
-            }
-          );
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            const errorDetails = {
-              status: response.status,
-              statusText: response.statusText,
-              body: errorText,
-              batchIndex: index + 1,
-              totalBatches: batches.length,
-              videoIds: batch
-            };
-            console.error("❌ YouTube API Error:", errorDetails);
-            throw new Error(`YouTube API error: ${response.status} - ${response.statusText}\nResponse: ${errorText}`);
-          }
-
-          const data = await response.json();
-          
-          if (!data.items) {
-            console.warn("⚠️ No items returned from YouTube API for batch:", {
-              batchIndex: index + 1,
-              totalBatches: batches.length,
-              videoIds: batch
-            });
-            return;
-          }
-
-          // Process each video in the batch
-          for (const video of data.items) {
-            const metadata: YouTubeVideoMetadata = {
-              video_id: video.id,
-              title: video.snippet?.title || "",
-              channel: video.snippet?.channelTitle || "",
-              category_id: video.snippet?.categoryId || "",
-              published_at: video.snippet?.publishedAt || "",
-              tags: video.snippet?.tags || [],
-              view_count: parseInt(video.statistics?.viewCount || "0"),
-              like_count: parseInt(video.statistics?.likeCount || "0"),
-              comment_count: parseInt(video.statistics?.commentCount || "0"),
-              made_for_kids: video.contentDetails?.contentRating?.ytRating === "ytAgeRestricted" || false,
-              duration: video.contentDetails?.duration || "",
-            };
-
-            // Store in memory
-            metadataMap.set(video.id, metadata);
-
-            // Prepare for Redis caching
-            const compressedEntry = deflateSync(JSON.stringify(metadata));
-            const encodedEntry = Buffer.from(compressedEntry).toString("base64");
-            cacheEntries[video.id] = encodedEntry;
-          }
-        } catch (error: any) {
-          console.error(`❌ Error processing batch ${index + 1}:`, error.message);
-        }
-      };
-
-      // Process batches with controlled concurrency
-      for (let i = 0; i < batches.length; i += CONCURRENCY_LIMIT) {
-        const currentBatches = batches.slice(i, i + CONCURRENCY_LIMIT);
-        await Promise.all(currentBatches.map((batch, index) => processBatch(batch, i + index)));
-        
-        // Add a small delay between groups of concurrent requests
-        if (i + CONCURRENCY_LIMIT < batches.length) {
-          await new Promise(resolve => setTimeout(resolve, 500)); // 0.5 second delay between groups
-        }
-      }
-
-      // Cache all entries in Redis at once using MSET
-      if (Object.keys(cacheEntries).length > 0) {
-        console.log(`🔄 Caching ${Object.keys(cacheEntries).length} videos in Redis...`);
-        
-        const CACHE_CHUNK_SIZE = 500;
-        const entries = Object.entries(cacheEntries);
-        const chunks = [];
-        
-        // Split entries into chunks of 10,000
-        for (let i = 0; i < entries.length; i += CACHE_CHUNK_SIZE) {
-          chunks.push(entries.slice(i, i + CACHE_CHUNK_SIZE));
-        }
-
-        console.log(`📦 Caching in ${chunks.length} chunks of up to ${CACHE_CHUNK_SIZE} entries each...`);
-
-        // Process each chunk with a delay
-        for (let i = 0; i < chunks.length; i++) {
-          const chunk = chunks[i];
-          const chunkObject = Object.fromEntries(chunk);
-          
-          console.log(`🔄 Caching chunk ${i + 1}/${chunks.length} (${chunk.length} entries)...`);
-          await redis.mset(chunkObject);
-          
-          // Add delay between chunks except for the last one
-          if (i < chunks.length - 1) {
-            console.log(`⏳ Waiting 2 seconds before next cache chunk...`);
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          }
-        }
+      // Step 3: Save newly fetched to local cache (background)
+      if (serverData.size > 0) {
+        saveToLocalCache(serverData).catch(err =>
+          console.warn('[Metadata] Background cache save failed:', err)
+        );
       }
     }
 
-    console.log(`✅ Successfully processed ${metadataMap.size} videos`);
+    const duration = Date.now() - startTime;
+    console.log(`[Metadata] Complete: ${metadataMap.size}/${uniqueIds.length} in ${duration}ms`);
+
     return metadataMap;
-  } catch (error: any) {
-    console.error("❌ Error in getVideosMetadata:", error.message);
-    throw error;
+  } catch (error) {
+    console.error('[Metadata] Error:', error);
+    // Return what we have
+    return metadataMap;
+  }
+}
+
+/**
+ * Clear the local metadata cache
+ */
+export async function clearLocalMetadataCache(): Promise<void> {
+  try {
+    const db = await getDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    await tx.objectStore(STORE_NAME).clear();
+    await tx.done;
+    console.log('[Metadata] Local cache cleared');
+  } catch (error) {
+    console.warn('[Metadata] Failed to clear cache:', error);
   }
 }
