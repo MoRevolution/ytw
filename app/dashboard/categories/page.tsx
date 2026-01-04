@@ -4,12 +4,13 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { BarChart3, Clock, Film, Home, Users, Play } from "lucide-react"
+import { Play } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { Sidebar } from "@/components/sidebar"
 import { fetchCategoryData } from "@/lib/fetch-categories-data"
 import { getCategoryName } from "@/lib/youtube-categories"
 
@@ -283,38 +284,7 @@ export default function CategoriesPage() {
     <div className="flex min-h-screen flex-col">
       <DashboardHeader />
       <div className="flex flex-1">
-        <aside className="hidden w-[250px] flex-col border-r px-4 py-6 md:flex">
-          <nav className="mt-8 flex flex-col gap-2">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-            >
-              <Home className="h-4 w-4" />
-              Dashboard
-            </Link>
-            <Link
-              href="/dashboard/watch-time"
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-            >
-              <Clock className="h-4 w-4" />
-              Watch Time
-            </Link>
-            <Link
-              href="/dashboard/categories"
-              className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm font-medium"
-            >
-              <BarChart3 className="h-4 w-4" />
-              Categories
-            </Link>
-            <Link
-              href="/dashboard/creators"
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-            >
-              <Users className="h-4 w-4" />
-              Creators
-            </Link>
-          </nav>
-        </aside>
+        <Sidebar />
         <main className="flex-1 overflow-auto">
           <div className="container py-6 md:py-12">
             <div className="mb-8">
