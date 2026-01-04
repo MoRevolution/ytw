@@ -388,10 +388,10 @@ function calculateMostWatchedVideo(entries: WatchHistoryEntry[]): { title: strin
     return counts
   }, {} as Record<string, number>)
 
-  // Sort by count and get top 5
+  // Sort by count and get top 20
   const topVideos = Object.entries(videoCounts)
     .sort(([, a], [, b]) => b - a)
-    .slice(0, 5)
+    .slice(0, 20)
     .map(([key, count]) => {
       const [title, channel, videoId] = key.split('|')
       return {
