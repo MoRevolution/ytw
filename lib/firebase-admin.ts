@@ -3,13 +3,27 @@ import { getFirestore } from 'firebase-admin/firestore';
 
 export function getAdminDB() {
   if (getApps().length === 0) {
-    initializeApp({
-      credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      }),
-    });
+    console.log('[Firebase Admin] Initializing new app...');
+    console.log('[Firebase Admin] projectId present:', !!process.env.FIREBASE_PROJECT_ID);
+    console.log('[Firebase Admin] clientEmail present:', !!process.env.FIREBASE_CLIENT_EMAIL);
+    console.log('[Firebase Admin] privateKey present:', !!process.env.FIREBASE_PRIVATE_KEY);
+    console.log('[Firebase Admin] privateKey length:', process.env.FIREBASE_PRIVATE_KEY?.length);
+    
+    try {
+      initializeApp({
+        credential: cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        }),
+      });
+      console.log('[Firebase Admin] App initialized successfully');
+    } catch (initError) {
+      console.error('[Firebase Admin] FAILED to initialize:', initError);
+      throw initError;
+    }
+  } else {
+    console.log('[Firebase Admin] Using existing app instance');
   }
   return getFirestore();
 }
