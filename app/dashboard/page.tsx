@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { ShareStats } from "@/components/share-stats"
+import { AnimatedCard, AnimatedStat } from "@/components/animated-card"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Sidebar } from "@/components/sidebar"
@@ -342,13 +343,16 @@ export default function DashboardPage() {
             ) : stats ? (
               <>
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  <AnimatedCard delay={0}>
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle>Total Watch Time</CardTitle>
                       <CardDescription>Hours spent watching videos</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-4xl font-bold">{stats?.primaryYear.watchTime.toFixed(1)}</div>
+                      <div className="text-4xl font-bold">
+                        <AnimatedStat value={stats?.primaryYear.watchTime || 0} decimals={1} />
+                      </div>
                       <p className="text-xs text-muted-foreground">hours</p>
                       {stats?.comparisonYear && (
                         <div className="mt-4 flex items-center gap-2">
@@ -362,13 +366,17 @@ export default function DashboardPage() {
                       )}
                     </CardContent>
                   </Card>
+                  </AnimatedCard>
+                  <AnimatedCard delay={100}>
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle>Videos Watched</CardTitle>
                       <CardDescription>Total number of videos</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-4xl font-bold">{stats.primaryYear.videosWatched.toLocaleString()}</div>
+                      <div className="text-4xl font-bold">
+                        <AnimatedStat value={stats.primaryYear.videosWatched} delay={100} />
+                      </div>
                       <p className="text-xs text-muted-foreground">videos</p>
                       {stats.comparisonYear && (
                         <div className="mt-4 flex items-center gap-2">
@@ -382,13 +390,17 @@ export default function DashboardPage() {
                       )}
                     </CardContent>
                   </Card>
+                  </AnimatedCard>
+                  <AnimatedCard delay={200}>
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle>Unique Creators</CardTitle>
                       <CardDescription>Different channels you watched</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-4xl font-bold">{stats.primaryYear.uniqueCreators}</div>
+                      <div className="text-4xl font-bold">
+                        <AnimatedStat value={stats.primaryYear.uniqueCreators} delay={200} />
+                      </div>
                       <p className="text-xs text-muted-foreground">creators</p>
                       {stats.comparisonYear && (
                         <div className="mt-4 flex items-center gap-2">
@@ -402,10 +414,12 @@ export default function DashboardPage() {
                       )}
                     </CardContent>
                   </Card>
+                  </AnimatedCard>
                 </div>
                 
                 <div className="mt-8">
                     {/* <h2 className="mb-4 text-2xl font-bold tracking-tight">Your {stats.primaryYear.year} Highlights</h2> */}
+                    <AnimatedCard delay={300}>
                     <div className="w-full">
                     <Card className="w-full overflow-hidden">
                       <CardHeader className="pb-2">
@@ -457,9 +471,11 @@ export default function DashboardPage() {
                       </CardContent>
                     </Card>
                   </div>
+                  </AnimatedCard>
                 </div>
 
                 <div className="mt-8 grid gap-6 md:grid-cols-2">
+                  <AnimatedCard delay={400}>
                   <Card>
                     <CardHeader>
                       <CardTitle>Top Categories</CardTitle>
@@ -484,7 +500,9 @@ export default function DashboardPage() {
                       </div>
                     </CardContent>
                   </Card>
+                  </AnimatedCard>
 
+                  <AnimatedCard delay={500}>
                   <Card>
                     <CardHeader>
                       <CardTitle>Top Creators</CardTitle>
@@ -516,8 +534,10 @@ export default function DashboardPage() {
                       </div>
                     </CardContent>
                   </Card>
+                  </AnimatedCard>
                 </div>
 
+                <AnimatedCard delay={600}>
                 <div className="mt-8">
                   <Card>
                     <CardHeader>
@@ -643,6 +663,7 @@ export default function DashboardPage() {
                     </CardContent>
                   </Card>
                 </div>
+                </AnimatedCard>
 
                 {/* <div className="mt-8">
                   <Card>
@@ -658,6 +679,7 @@ export default function DashboardPage() {
                   </Card>
                 </div> */}
 
+                <AnimatedCard delay={700}>
                 <div className="mt-12 text-center">
                   <ShareStats
                     stats={{
@@ -676,6 +698,7 @@ export default function DashboardPage() {
                   />
                   <p className="mt-2 text-sm text-muted-foreground">Generate a shareable image to post on social media</p>
                 </div>
+                </AnimatedCard>
               </>
             ) : null}
           </div>
