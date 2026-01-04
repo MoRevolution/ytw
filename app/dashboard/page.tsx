@@ -237,12 +237,14 @@ export default function DashboardPage() {
           try {
             // Check if we're in the browser environment
             // Check if we have cached data
+            const CACHE_VERSION = 'v2' // Bump this to invalidate old cache
             const cachedData = localStorage.getItem('dashboardStats')
             const cachedTimestamp = localStorage.getItem('dashboardStatsTimestamp')
+            const cachedVersion = localStorage.getItem('dashboardStatsVersion')
             const now = new Date().getTime()
             
-            // If we have cached data less than 1 hour old, use it
-            if (cachedData && cachedTimestamp) {
+            // If we have cached data less than 1 hour old AND correct version, use it
+            if (cachedData && cachedTimestamp && cachedVersion === CACHE_VERSION) {
               try {
                 const parsedData = JSON.parse(cachedData)
                 if ((now - parseInt(cachedTimestamp)) < 3600000) {
@@ -257,6 +259,7 @@ export default function DashboardPage() {
                 // Clear invalid cached data
                 localStorage.removeItem('dashboardStats')
                 localStorage.removeItem('dashboardStatsTimestamp')
+                localStorage.removeItem('dashboardStatsVersion')
               }
             }
 
@@ -275,6 +278,7 @@ export default function DashboardPage() {
               // Cache the new data if we're in the browser
               localStorage.setItem('dashboardStats', testString)
               localStorage.setItem('dashboardStatsTimestamp', new Date().getTime().toString())
+              localStorage.setItem('dashboardStatsVersion', CACHE_VERSION)
             } catch (validationError) {
               console.error('❌ Error validating new data:', validationError)
               console.error('Problematic data:', data)
@@ -431,35 +435,36 @@ export default function DashboardPage() {
                 </div>
                 
                 <div className="mt-8">
-                  {/* <h2 className="mb-4 text-2xl font-bold tracking-tight">Your {stats.primaryYear.year} Highlights</h2> */}
-                  <div className="grid gap-4 w-full mx-auto">
-                    <Card className="w-full">
+                    {/* <h2 className="mb-4 text-2xl font-bold tracking-tight">Your {stats.primaryYear.year} Highlights</h2> */}
+                    <div className="w-full">
+                    <Card className="w-full overflow-hidden">
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-lg">Your faves</CardTitle>
-                        <div className="py-1"></div>
+                      <CardTitle className="text-lg">Your faves</CardTitle>
                       </CardHeader>
-                      <CardContent>
-                      <div className="flex gap-4 overflow-x-auto pb-4 px-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent scroll-smooth">
-                        {stats?.primaryYear.mostWatchedVideos?.map((video) => (
-                            <a 
-                              key={video.videoId}
-                              href={`https://www.youtube.com/watch?v=${video.videoId}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block min-w-[200px]"
-                            >
-                              <div className="aspect-video overflow-hidden rounded-md bg-muted group relative">
-                                <Image
-                                  src={`https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`}
-                                  alt="Video thumbnail"
-                                  width={200}
-                                  height={112}
-                                  className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.src = `/placeholder.svg?height=112&width=200`;
-                                  }}
-                                />
+                      <CardContent className="px-6 pb-2">
+                      <div className="flex gap-4 overflow-x-auto pb-3 scroll-container">
+                      {stats?.primaryYear.mostWatchedVideos?.map((video, index) => (
+                        <a 
+                          key={video.videoId}
+                          href={`https://www.youtube.com/watch?v=${video.videoId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block flex-shrink-0"
+                          style={{ width: 'calc((100% - 64px) / 5)' }}
+                        >
+                          <div className="aspect-video overflow-hidden rounded-md bg-muted group relative">
+                          <Image
+                            src={`https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`}
+                            alt="Video thumbnail"
+                            width={320}
+                            height={180}
+                            loading="lazy"
+                            className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                            onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = `/placeholder.svg?height=180&width=320`;
+                            }}
+                          />
                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                   <div className="bg-black/50 rounded-full p-2">
                                     <Play className="h-6 w-6 text-white" />
