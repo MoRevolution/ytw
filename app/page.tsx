@@ -11,11 +11,14 @@ import { useAuth } from "@/contexts/auth-context"
 export default function HomePage() {
   const { isLoggedIn, login, viewSampleUser } = useAuth()
 
-  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
-    e.preventDefault()
+  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement> | null, sectionId: string) => {
+    if (e) e.preventDefault()
     const element = document.getElementById(sectionId)
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const headerOffset = 80
+      const elementPosition = element.getBoundingClientRect().top
+      const offsetPosition = elementPosition + window.scrollY - headerOffset
+      window.scrollTo({ top: offsetPosition, behavior: 'smooth' })
     }
   }
 
@@ -55,7 +58,7 @@ export default function HomePage() {
             <ThemeToggle />
             <UserProfile />
             {!isLoggedIn ? (
-              <Button onClick={() => login()} className="gap-2">
+              <Button onClick={() => scrollToSection(null, 'how-it-works')} className="gap-2">
                 Get Started <ArrowRight className="h-4 w-4" />
               </Button>
             ) : (
@@ -98,7 +101,7 @@ export default function HomePage() {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 mt-4">
-                <Button size="lg" className="gap-2 text-base px-8" onClick={() => isLoggedIn ? window.location.href = '/dashboard' : login()}>
+                <Button size="lg" className="gap-2 text-base px-8" onClick={() => isLoggedIn ? window.location.href = '/dashboard' : scrollToSection(null, 'how-it-works')}>
                   {isLoggedIn ? 'View Your Wrapped' : 'Get Started'} <ArrowRight className="h-5 w-5" />
                 </Button>
                 <Button size="lg" variant="outline" className="gap-2 text-base px-8" onClick={() => viewSampleUser()}>
@@ -282,9 +285,11 @@ export default function HomePage() {
                   View your personalized stats and share them with friends. Bragging rights included!
                 </p>
                 <div className="mt-auto">
-                  <Button onClick={() => isLoggedIn ? window.location.href = '/dashboard' : login()} className="gap-2">
-                    {isLoggedIn ? 'Go to Dashboard' : 'Get Started'} <ArrowRight className="h-4 w-4" />
-                  </Button>
+                  <Link href="/login">
+                    <Button className="gap-2">
+                      {isLoggedIn ? 'Go to Dashboard' : 'Login'} <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </div>
