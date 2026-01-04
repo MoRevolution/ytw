@@ -1,6 +1,7 @@
 import { openDB } from "idb"
 import { DB_NAME, FILES_STORE } from './constants'
 import { getCategoryName } from './youtube-categories'
+import { logger } from './logger'
 
 interface WatchHistoryEntry {
   title: string

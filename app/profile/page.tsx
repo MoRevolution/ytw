@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowLeft, Calendar, Clock, Film, Mail, MapPin, RefreshCw } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, Film, Mail, MapPin, RefreshCw, Bug } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -67,7 +67,7 @@ export default function ProfilePage() {
         description: "Your YouTube watch history has been successfully updated and processed.",
       });
     } catch (error: any) {
-      console.error("❌ Error:", error.message);
+      console.error("Error refreshing data:", error.message);
       toast({
         title: "Error",
         description: "Could not refresh watch history. Please try again later.",

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/contexts/auth-context"
 import { GoogleLogin } from "@/components/google-login"
+import { logger } from "@/lib/logger"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)

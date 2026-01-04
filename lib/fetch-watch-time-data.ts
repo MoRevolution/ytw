@@ -1,5 +1,6 @@
 import { openDB } from "idb"
 import { DB_NAME, FILES_STORE } from './constants'
+import { logger } from "./logger"
 
 interface WatchHistoryEntry {
   channel_name: string

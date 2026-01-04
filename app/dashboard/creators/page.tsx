@@ -13,6 +13,8 @@ import { fetchDefaultComparison, DashboardStats } from "@/lib/fetch-dashboard-da
 import { getChannelThumbnailCached } from "@/lib/youtube-api"
 import { CreatorCard } from "@/components/creator-card"
 
+
+
 // Mock data for fallback
 const mockCreatorStats = {
   primaryYear: {
