@@ -29,11 +29,11 @@ const mockCreatorStats = {
     year: 2023,
     isComplete: true,
     topCreators: [
-      { name: "MKBHD", watchTime: 42.3, videoCount: 85, channelId: "UCBJycsmduvYEL83R_U4JriQ" },
-      { name: "Linus Tech Tips", watchTime: 38.7, videoCount: 78, channelId: "UCXuqSBlHAE6Xw-yeJA0Tunw" },
-      { name: "Veritasium", watchTime: 29.5, videoCount: 60, channelId: "UCHnyfMqiRRG1u-2MsSQLbXA" },
-      { name: "Fireship", watchTime: 24.8, videoCount: 50, channelId: "UCsBjURrPoezykLs9EqgamOA" },
-      { name: "The Verge", watchTime: 20.1, videoCount: 45, channelId: "UCddiUEpeqJcYeBxXxIVlKCA" }
+      { name: "MKBHD", watchTime: 42.3, videoCount: 85, channelId: "UCBJycsmduvYEL83R_U4JriQ", avgVideoDuration: 0.5, normalizedScore: 25.5 },
+      { name: "Linus Tech Tips", watchTime: 38.7, videoCount: 78, channelId: "UCXuqSBlHAE6Xw-yeJA0Tunw", avgVideoDuration: 0.5, normalizedScore: 23.4 },
+      { name: "Veritasium", watchTime: 29.5, videoCount: 60, channelId: "UCHnyfMqiRRG1u-2MsSQLbXA", avgVideoDuration: 0.49, normalizedScore: 18.0 },
+      { name: "Fireship", watchTime: 24.8, videoCount: 50, channelId: "UCsBjURrPoezykLs9EqgamOA", avgVideoDuration: 0.5, normalizedScore: 15.0 },
+      { name: "The Verge", watchTime: 20.1, videoCount: 45, channelId: "UCddiUEpeqJcYeBxXxIVlKCA", avgVideoDuration: 0.45, normalizedScore: 13.5 }
     ],
     categoryStats: [
       { name: "Tech", watchTime: 65.2, percentage: 32.5 },

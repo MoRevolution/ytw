@@ -2,18 +2,20 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowDown, ArrowUp, Clock } from "lucide-react"
+import { ArrowDown, ArrowUp, Clock, Calendar, Trophy, Flame, Target, GitCompare, AlertCircle } from "lucide-react"
 import { useEffect, useState } from "react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { AnimatedCard, AnimatedStat } from "@/components/animated-card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Sidebar } from "@/components/sidebar"
 import { fetchWatchTimeStats } from "@/lib/fetch-watch-time-data"
 import { useAuth } from "@/contexts/auth-context"
 import { getCategoryName } from "@/lib/youtube-categories"
+import { mockWatchTimeStats } from "@/lib/mock-data"
 
 interface WatchTimeStats {
   totalWatchTime: number
@@ -66,89 +68,6 @@ interface WatchTimeStats {
   }
 }
 
-// Mock data for fallback and sample user
-const mockStats: WatchTimeStats = {
-  totalWatchTime: 247,
-  averageDailyWatchTime: 0.68, // 40.7 minutes
-  averageVideoLength: 0.135, // 8.1 minutes
-  year: 2024,
-  dailyWatchTime: Array.from({ length: 365 }, (_, i) => ({
-    date: new Date(2024, 0, i + 1).toISOString().split('T')[0],
-    watchTime: Math.random() * 2 // Random watch time between 0-2 hours
-  })),
-  videoLengthDistribution: [
-    { length: "0-5 min", count: 450 },
-    { length: "5-10 min", count: 620 },
-    { length: "10-15 min", count: 380 },
-    { length: "15-20 min", count: 250 },
-    { length: "20-30 min", count: 180 },
-    { length: "30+ min", count: 120 }
-  ],
-  weeklyPatterns: [
-    { dayOfWeek: "Sunday", averageWatchTime: 75 },
-    { dayOfWeek: "Monday", averageWatchTime: 35 },
-    { dayOfWeek: "Tuesday", averageWatchTime: 38 },
-    { dayOfWeek: "Wednesday", averageWatchTime: 35 },
-    { dayOfWeek: "Thursday", averageWatchTime: 40 },
-    { dayOfWeek: "Friday", averageWatchTime: 45 },
-    { dayOfWeek: "Saturday", averageWatchTime: 68 }
-  ],
-  dailyPatterns: [
-    { hour: 0, averageWatchTime: 10 },
-    { hour: 1, averageWatchTime: 5 },
-    { hour: 2, averageWatchTime: 3 },
-    { hour: 3, averageWatchTime: 2 },
-    { hour: 4, averageWatchTime: 1 },
-    { hour: 5, averageWatchTime: 2 },
-    { hour: 6, averageWatchTime: 5 },
-    { hour: 7, averageWatchTime: 8 },
-    { hour: 8, averageWatchTime: 12 },
-    { hour: 9, averageWatchTime: 15 },
-    { hour: 10, averageWatchTime: 20 },
-    { hour: 11, averageWatchTime: 25 },
-    { hour: 12, averageWatchTime: 30 },
-    { hour: 13, averageWatchTime: 35 },
-    { hour: 14, averageWatchTime: 40 },
-    { hour: 15, averageWatchTime: 45 },
-    { hour: 16, averageWatchTime: 50 },
-    { hour: 17, averageWatchTime: 55 },
-    { hour: 18, averageWatchTime: 60 },
-    { hour: 19, averageWatchTime: 65 },
-    { hour: 20, averageWatchTime: 70 },
-    { hour: 21, averageWatchTime: 75 },
-    { hour: 22, averageWatchTime: 60 },
-    { hour: 23, averageWatchTime: 30 }
-  ],
-  previousYearStats: {
-    averageDailyWatchTime: 0.55, // 33 minutes
-    averageVideoLength: 0.12, // 7.2 minutes
-    year: 2023
-  },
-  milestones: {
-    longestSingleDay: {
-      date: "2024-07-15",
-      watchTime: 5.2,
-      videoCount: 14,
-      category: "24" // Gaming category
-    },
-    mostActiveMonth: {
-      month: "2024-08",
-      watchTime: 40,
-      videoCount: 230,
-      increaseFromAverage: 28
-    },
-    longestSession: {
-      date: "2024-10-08",
-      duration: 3.5,
-      category: "28" // Tech category
-    },
-    totalHoursMilestone: {
-      hours: 250,
-      date: "2024-12-28"
-    }
-  }
-}
-
 // Add localStorage cache helpers
 const CACHE_KEY_PREFIX = 'ytw-stats-'
 
@@ -180,6 +99,7 @@ export default function WatchTimePage() {
   const router = useRouter()
   const [stats, setStats] = useState<WatchTimeStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showComparison, setShowComparison] = useState(true)
 
   // Function to convert UTC to Central Time (UTC-6)
   const convertToCentralTime = (date: Date) => {
@@ -242,7 +162,7 @@ export default function WatchTimePage() {
       try {
         if (isSampleUser) {
           console.log('📊 Using mock data for sample user')
-          setStats(processWatchTimeData(mockStats))
+          setStats(processWatchTimeData(mockWatchTimeStats as WatchTimeStats))
           setIsLoading(false)
           return
         }
@@ -281,7 +201,7 @@ export default function WatchTimePage() {
       } catch (error) {
         console.error("❌ Error fetching watch time stats:", error)
         console.log('⚠️ Using mock data as fallback')
-        setStats(processWatchTimeData(mockStats))
+        setStats(processWatchTimeData(mockWatchTimeStats as WatchTimeStats))
       } finally {
         setIsLoading(false)
       }
@@ -345,103 +265,143 @@ export default function WatchTimePage() {
         <Sidebar />
         <main className="flex-1 overflow-auto">
           <div className="container py-6 md:py-12">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold tracking-tight">Watch Time Analysis</h1>
-              <p className="text-muted-foreground">
-                Detailed breakdown of your YouTube viewing habits in {stats?.year}
-                {stats?.previousYearStats && ` compared to ${stats.previousYearStats.year}`}.
-              </p>
+            <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight">Watch Time Analysis</h1>
+                <p className="text-muted-foreground">
+                  Detailed breakdown of your YouTube viewing habits in {stats?.year}
+                  {stats?.previousYearStats && showComparison && ` compared to ${stats.previousYearStats.year}`}.
+                </p>
+              </div>
+              {stats?.previousYearStats && (
+                <div className="flex flex-col items-start gap-2 md:items-end">
+                  <Button
+                    variant={showComparison ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowComparison(!showComparison)}
+                    className="gap-2"
+                  >
+                    <GitCompare className="h-4 w-4" />
+                    {showComparison ? "Hide" : "Show"} Year Comparison
+                  </Button>
+                  {showComparison && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      <span>Comparison data may be incomplete for partial years</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="grid gap-6 md:grid-cols-3">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle>Total Watch Time</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-4xl font-bold">{Math.round(stats.totalWatchTime)}</div>
-                  <p className="text-xs text-muted-foreground">hours</p>
-                  <div className="mt-2 text-sm text-muted-foreground">That's equivalent to:</div>
-                  <ul className="mt-2 space-y-1 text-sm">
-                    <li className="flex items-center gap-2">
-                      <div className="h-1.5 w-1.5 rounded-full bg-red-500"></div>
-                      <span>{daysOfContinuousWatching} days of continuous watching</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="h-1.5 w-1.5 rounded-full bg-red-500"></div>
-                      <span>{workDays} eight-hour workdays</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="h-1.5 w-1.5 rounded-full bg-red-500"></div>
-                      <span>{workWeeks} 40-hour work weeks</span>
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle>Average Daily Watch Time</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-4xl font-bold">{Math.round(stats.averageDailyWatchTime * 60)}</div>
-                  <p className="text-xs text-muted-foreground">minutes per day</p>
-                  {stats.previousYearStats && (
-                    <div className="mt-2 flex items-center gap-1 text-sm">
-                      {dailyWatchTimeChange > 0 ? (
-                        <ArrowUp className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <ArrowDown className="h-4 w-4 text-red-500" />
-                      )}
-                      <span className={dailyWatchTimeChange > 0 ? "text-green-500" : "text-red-500"}>
-                        {Math.abs(Math.round(dailyWatchTimeChange))}%
-                      </span>
-                      <span className="text-muted-foreground">from last year</span>
+              <AnimatedCard delay={0}>
+                <Card className="card-hover card-hero relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 via-transparent to-transparent" />
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-red-500" />
+                      Total Watch Time
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-4xl font-bold"><AnimatedStat value={Math.round(stats.totalWatchTime)} /></div>
+                    <p className="text-xs text-muted-foreground">hours</p>
+                    <div className="mt-2 text-sm text-muted-foreground">That's equivalent to:</div>
+                    <ul className="mt-2 space-y-1 text-sm">
+                      <li className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-red-500"></div>
+                        <span>{daysOfContinuousWatching} days of continuous watching</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-red-500"></div>
+                        <span>{workDays} eight-hour workdays</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-red-500"></div>
+                        <span>{workWeeks} 40-hour work weeks</span>
+                      </li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              </AnimatedCard>
+              <AnimatedCard delay={100}>
+                <Card className="card-hover card-hero relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent" />
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-blue-500" />
+                      Average Daily Watch Time
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-4xl font-bold"><AnimatedStat value={Math.round(stats.averageDailyWatchTime * 60)} delay={100} /></div>
+                    <p className="text-xs text-muted-foreground">minutes per day</p>
+                    {stats.previousYearStats && showComparison && (
+                      <div className="mt-2 flex items-center gap-1 text-sm">
+                        {dailyWatchTimeChange > 0 ? (
+                          <ArrowUp className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <ArrowDown className="h-4 w-4 text-red-500" />
+                        )}
+                        <span className={dailyWatchTimeChange > 0 ? "text-green-500" : "text-red-500"}>
+                          {Math.abs(Math.round(dailyWatchTimeChange))}%
+                        </span>
+                        <span className="text-muted-foreground">from last year</span>
+                      </div>
+                    )}
+                    <div className="mt-4 h-4 rounded-full bg-muted">
+                      <div 
+                        className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-500" 
+                        style={{ width: `${dailyWatchTimePercentage}%` }}
+                      ></div>
                     </div>
-                  )}
-                  <div className="mt-4 h-4 rounded-full bg-muted">
-                    <div 
-                      className="h-full rounded-full bg-red-500" 
-                      style={{ width: `${dailyWatchTimePercentage}%` }}
-                    ></div>
-                  </div>
-                  <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                    <span>0</span>
-                    <span>1 hour</span>
-                    <span>2 hours</span>
-                    <span>3 hours</span>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle>Average Video Length</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-4xl font-bold">{Math.round(stats.averageVideoLength * 60)}</div>
-                  <p className="text-xs text-muted-foreground">minutes per video</p>
-                  {stats.previousYearStats && (
-                    <div className="mt-4 flex items-center gap-1 text-sm">
-                      {videoLengthChange > 0 ? (
-                        <ArrowUp className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <ArrowDown className="h-4 w-4 text-red-500" />
-                      )}
-                      <span className={videoLengthChange > 0 ? "text-green-500" : "text-red-500"}>
-                        {Math.abs(Math.round(videoLengthChange))}%
-                      </span>
-                      <span className="text-muted-foreground">from last year</span>
+                    <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+                      <span>0</span>
+                      <span>1 hour</span>
+                      <span>2 hours</span>
+                      <span>3 hours</span>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </AnimatedCard>
+              <AnimatedCard delay={200}>
+                <Card className="card-hover card-hero relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-transparent" />
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5 text-purple-500" />
+                      Average Video Length
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-4xl font-bold"><AnimatedStat value={Math.round(stats.averageVideoLength * 60)} delay={200} /></div>
+                    <p className="text-xs text-muted-foreground">minutes per video</p>
+                    {stats.previousYearStats && showComparison && (
+                      <div className="mt-4 flex items-center gap-1 text-sm">
+                        {videoLengthChange > 0 ? (
+                          <ArrowUp className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <ArrowDown className="h-4 w-4 text-red-500" />
+                        )}
+                        <span className={videoLengthChange > 0 ? "text-green-500" : "text-red-500"}>
+                          {Math.abs(Math.round(videoLengthChange))}%
+                        </span>
+                        <span className="text-muted-foreground">from last year</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </AnimatedCard>
             </div>
 
             <div className="mt-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Monthly Watch Time</CardTitle>
-                  <CardDescription>How your viewing changed throughout the year</CardDescription>
-                </CardHeader>
+              <AnimatedCard delay={300}>
+                <Card className="card-hover">
+                  <CardHeader>
+                    <CardTitle>Monthly Watch Time</CardTitle>
+                    <CardDescription>How your viewing changed throughout the year</CardDescription>
+                  </CardHeader>
                 <CardContent>
                   <Tabs defaultValue="hours">
                     <TabsList className="mb-4">
@@ -581,15 +541,17 @@ export default function WatchTimePage() {
                   </Tabs>
                 </CardContent>
               </Card>
+              </AnimatedCard>
             </div>
 
 
             <div className="mt-8 grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Weekly Viewing Pattern</CardTitle>
-                  <CardDescription>Your average watch time by day of the week</CardDescription>
-                </CardHeader>
+              <AnimatedCard delay={400}>
+                <Card className="card-hover">
+                  <CardHeader>
+                    <CardTitle>Weekly Viewing Pattern</CardTitle>
+                    <CardDescription>Your average watch time by day of the week</CardDescription>
+                  </CardHeader>
                 <CardContent>
                   <div className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
@@ -679,12 +641,14 @@ export default function WatchTimePage() {
                   </div>
                 </CardContent>
               </Card>
+              </AnimatedCard>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Daily Viewing Pattern</CardTitle>
-                  <CardDescription>When you watch YouTube throughout the day</CardDescription>
-                </CardHeader>
+              <AnimatedCard delay={500}>
+                <Card className="card-hover">
+                  <CardHeader>
+                    <CardTitle>Daily Viewing Pattern</CardTitle>
+                    <CardDescription>When you watch YouTube throughout the day</CardDescription>
+                  </CardHeader>
                 <CardContent>
                   <div className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
@@ -764,88 +728,88 @@ export default function WatchTimePage() {
                   </div>
                 </CardContent>
               </Card>
+              </AnimatedCard>
             </div>
 
             <div className="mt-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Watch Time Milestones</CardTitle>
-                  <CardDescription>Notable achievements in your viewing history</CardDescription>
+              <AnimatedCard delay={600}>
+                <Card className="card-hover">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Trophy className="h-5 w-5 text-yellow-500" />
+                      Watch Time Milestones
+                    </CardTitle>
+                    <CardDescription>Notable achievements in your viewing history</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {stats?.milestones ? (
-                    <div className="space-y-6">
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-500">
-                          <Clock className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium">Longest Single Day</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(stats.milestones.longestSingleDay.date).toLocaleDateString('en-US', { 
-                              month: 'long', 
-                              day: 'numeric', 
-                              year: 'numeric' 
-                            })} - {stats.milestones.longestSingleDay.watchTime.toFixed(1)} hours
-                          </p>
-                          <p className="mt-1 text-sm">
-                            You watched {stats.milestones.longestSingleDay.videoCount} videos on this day, 
-                            mostly {getCategoryName(stats.milestones.longestSingleDay.category || '')} content.
-                          </p>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-500 dark:bg-red-500/20">
+                            <Flame className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-red-600 dark:text-red-400">Longest Single Day</h3>
+                            <p className="text-2xl font-bold">{stats.milestones.longestSingleDay.watchTime.toFixed(1)}h</p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {new Date(stats.milestones.longestSingleDay.date).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric' 
+                              })} • {stats.milestones.longestSingleDay.videoCount} videos
+                            </p>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 text-purple-500">
-                          <Clock className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium">Most Active Month</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(stats.milestones.mostActiveMonth.month).toLocaleDateString('en-US', { 
-                              month: 'long', 
-                              year: 'numeric' 
-                            })} - {Math.round(stats.milestones.mostActiveMonth.watchTime)} hours
-                          </p>
-                          <p className="mt-1 text-sm">
-                            You watched {stats.milestones.mostActiveMonth.videoCount} videos this month, 
-                            {Math.round(stats.milestones.mostActiveMonth.increaseFromAverage)}% more than your monthly average.
-                          </p>
+                      <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-500 dark:bg-purple-500/20">
+                            <Calendar className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-purple-600 dark:text-purple-400">Most Active Month</h3>
+                            <p className="text-2xl font-bold">{Math.round(stats.milestones.mostActiveMonth.watchTime)}h</p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {new Date(stats.milestones.mostActiveMonth.month).toLocaleDateString('en-US', { 
+                                month: 'long' 
+                              })} • +{Math.round(stats.milestones.mostActiveMonth.increaseFromAverage)}% vs avg
+                            </p>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-500">
-                          <Clock className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium">Longest Watching Session</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(stats.milestones.longestSession.date).toLocaleDateString('en-US', { 
-                              month: 'long', 
-                              day: 'numeric', 
-                              year: 'numeric' 
-                            })} - {stats.milestones.longestSession.duration.toFixed(1)} hours continuous
-                          </p>
-                          <p className="mt-1 text-sm">
-                            You watched a series of {getCategoryName(stats.milestones.longestSession.category || '')} videos without significant breaks.
-                          </p>
+                      <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-500 dark:bg-blue-500/20">
+                            <Clock className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-blue-600 dark:text-blue-400">Longest Session</h3>
+                            <p className="text-2xl font-bold">{stats.milestones.longestSession.duration.toFixed(1)}h</p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {new Date(stats.milestones.longestSession.date).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric' 
+                              })} • {getCategoryName(stats.milestones.longestSession.category || '')}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 text-green-500">
-                          <Clock className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium">{stats.milestones.totalHoursMilestone.hours} Hour Milestone</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Reached on {new Date(stats.milestones.totalHoursMilestone.date).toLocaleDateString('en-US', { 
-                              month: 'long', 
-                              day: 'numeric', 
-                              year: 'numeric' 
-                            })}
-                          </p>
-                          <p className="mt-1 text-sm">
-                            You've watched over {stats.milestones.totalHoursMilestone.hours} hours of YouTube content in {stats.year}!
-                          </p>
+                      <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-500 dark:bg-green-500/20">
+                            <Trophy className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-green-600 dark:text-green-400">{stats.milestones.totalHoursMilestone.hours}h Milestone</h3>
+                            <p className="text-2xl font-bold">🎉 Reached!</p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {new Date(stats.milestones.totalHoursMilestone.date).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -856,6 +820,7 @@ export default function WatchTimePage() {
                   )}
                 </CardContent>
               </Card>
+              </AnimatedCard>
             </div>
 
           </div>

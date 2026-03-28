@@ -13,7 +13,8 @@ import { UserProfile } from "@/components/user-profile"
 import { useAuth } from "@/contexts/auth-context"
 import { toast } from "@/hooks/use-toast"
 import { auth } from "@/lib/firebase"
-import { processAndStoreWatchHistoryByYear } from "@/lib/process-watch-history"
+import { processAndStoreWatchHistoryByYear } from "@/lib/indexeddb"
+import { mockSummaryStats } from "@/lib/mock-data"
 
 export default function ProfilePage() {
   const { isLoggedIn, isAuthLoading, user, logout } = useAuth()
@@ -79,13 +80,7 @@ export default function ProfilePage() {
   }
 
   // Mock stats data
-  const userStats = {
-    watchTime: 247,
-    videosWatched: 1842,
-    uniqueCreators: 312,
-    topCategory: "Gaming",
-    topCreator: "MKBHD",
-  }
+  const userStats = mockSummaryStats
 
   return (
     <div className="flex min-h-screen flex-col">

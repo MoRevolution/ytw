@@ -4,15 +4,17 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { Play } from "lucide-react"
+import { Play, TrendingUp, TrendingDown, Sparkles, Layers } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AnimatedCard, AnimatedStat } from "@/components/animated-card"
 import { useAuth } from "@/contexts/auth-context"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Sidebar } from "@/components/sidebar"
 import { fetchCategoryData } from "@/lib/fetch-categories-data"
 import { getCategoryName } from "@/lib/youtube-categories"
+import { mockCategoryData } from "@/lib/mock-data"
 
 
 interface CategoryData {
@@ -43,125 +45,6 @@ interface CategoryData {
     }
     change: number
   }[]
-}
-
-// Mock data for sample user
-const mockCategoryData: CategoryData = {
-  year: 2024,
-  totalWatchTime: 247,
-  categoryDistribution: [
-    { 
-      categoryId: "20", 
-      watchTime: 79, 
-      videoCount: 320, 
-      percentage: 32,
-      topVideos: [
-        {
-          videoId: "abc123",
-          title: "Minecraft Hardcore Survival: Day 1000",
-          channelTitle: "PewDiePie",
-          watchCount: 14,
-          duration: 3600
-        },
-        {
-          videoId: "def456",
-          title: "Fortnite Chapter 4 Season 2: Gameplay",
-          channelTitle: "Ninja",
-          watchCount: 9,
-          duration: 1800
-        },
-        {
-          videoId: "ghi789",
-          title: "League of Legends: Pro Tips and Tricks",
-          channelTitle: "Faker",
-          watchCount: 7,
-          duration: 2400
-        }
-      ]
-    },
-    { 
-      categoryId: "28", 
-      watchTime: 69, 
-      videoCount: 280, 
-      percentage: 28,
-      topVideos: [
-        {
-          videoId: "jkl012",
-          title: "iPhone 15 Pro: Honest Review",
-          channelTitle: "MKBHD",
-          watchCount: 11,
-          duration: 2700
-        },
-        {
-          videoId: "mno345",
-          title: "The Ultimate Guide to Next.js 13 App Router",
-          channelTitle: "Fireship",
-          watchCount: 8,
-          duration: 1500
-        },
-        {
-          videoId: "pqr678",
-          title: "Building a $5000 Gaming PC",
-          channelTitle: "Linus Tech Tips",
-          watchCount: 6,
-          duration: 2100
-        }
-      ]
-    },
-    { 
-      categoryId: "10", 
-      watchTime: 44, 
-      videoCount: 180, 
-      percentage: 18,
-      topVideos: []
-    },
-    { 
-      categoryId: "27", 
-      watchTime: 30, 
-      videoCount: 120, 
-      percentage: 12,
-      topVideos: []
-    },
-    { 
-      categoryId: "24", 
-      watchTime: 25, 
-      videoCount: 100, 
-      percentage: 10,
-      topVideos: []
-    }
-  ],
-  categoryComparison: [
-    {
-      categoryId: "20",
-      currentYear: { watchTime: 79, percentage: 32 },
-      previousYear: { watchTime: 59, percentage: 24 },
-      change: 8
-    },
-    {
-      categoryId: "28",
-      currentYear: { watchTime: 69, percentage: 28 },
-      previousYear: { watchTime: 62, percentage: 25 },
-      change: 3
-    },
-    {
-      categoryId: "10",
-      currentYear: { watchTime: 44, percentage: 18 },
-      previousYear: { watchTime: 49, percentage: 20 },
-      change: -2
-    },
-    {
-      categoryId: "27",
-      currentYear: { watchTime: 30, percentage: 12 },
-      previousYear: { watchTime: 20, percentage: 8 },
-      change: 4
-    },
-    {
-      categoryId: "24",
-      currentYear: { watchTime: 25, percentage: 10 },
-      previousYear: { watchTime: 57, percentage: 23 },
-      change: -13
-    }
-  ]
 }
 
 // Add localStorage cache helpers
@@ -244,18 +127,38 @@ export default function CategoriesPage() {
 
   if (isLoading) {
     return (
-      <div className="container py-6 md:py-12">
-        <div className="grid gap-6 md:grid-cols-2">
-          {[1, 2].map((i) => (
-            <Card key={i}>
-              <CardHeader className="pb-2">
-                <CardTitle>Loading...</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-8 w-full animate-pulse rounded bg-muted"></div>
-              </CardContent>
-            </Card>
-          ))}
+      <div className="flex min-h-screen flex-col">
+        <DashboardHeader />
+        <div className="flex flex-1">
+          <Sidebar />
+          <main className="flex-1 overflow-auto">
+            <div className="container py-6 md:py-12">
+              <div className="mb-8">
+                <div className="h-8 w-48 animate-pulse rounded bg-muted"></div>
+                <div className="mt-2 h-4 w-72 animate-pulse rounded bg-muted"></div>
+              </div>
+              <div className="grid gap-6 md:grid-cols-2">
+                {[1, 2].map((i) => (
+                  <Card key={i} className="overflow-hidden">
+                    <CardHeader className="pb-2">
+                      <div className="h-5 w-32 animate-pulse rounded bg-muted"></div>
+                      <div className="h-4 w-48 animate-pulse rounded bg-muted"></div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {[1, 2, 3, 4, 5].map((j) => (
+                          <div key={j} className="space-y-2">
+                            <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
+                            <div className="h-2 w-full animate-pulse rounded bg-muted"></div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </main>
         </div>
       </div>
     )
@@ -297,67 +200,82 @@ export default function CategoriesPage() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Category Distribution</CardTitle>
-                  <CardDescription>Percentage of watch time by category</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {data.categoryDistribution.map((category) => (
-                      <div key={category.categoryId} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className={`h-3 w-3 rounded-full ${categoryColors[category.categoryId as keyof typeof categoryColors] || 'bg-gray-500'}`}></div>
-                            <span>{getCategoryName(category.categoryId)}</span>
+              <AnimatedCard delay={0}>
+                <Card className="card-hover card-hero relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent" />
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Layers className="h-5 w-5 text-blue-500" />
+                      Category Distribution
+                    </CardTitle>
+                    <CardDescription>Percentage of watch time by category</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {data.categoryDistribution.map((category, index) => (
+                        <div key={category.categoryId} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className={`h-3 w-3 rounded-full ${categoryColors[category.categoryId as keyof typeof categoryColors] || 'bg-gray-500'}`}></div>
+                              <span className="font-medium">{getCategoryName(category.categoryId)}</span>
+                            </div>
+                            <span className="text-sm font-medium">
+                              <AnimatedStat value={Math.round(category.percentage)} delay={index * 50} />%
+                            </span>
                           </div>
-                          <span className="text-sm font-medium">{Math.round(category.percentage)}%</span>
+                          <Progress value={category.percentage} className="h-2" />
+                          <div className="text-xs text-muted-foreground">
+                            {Math.round(category.watchTime)} hours ({category.videoCount} videos)
+                          </div>
                         </div>
-                        <Progress value={category.percentage} className="h-2" />
-                        <div className="text-xs text-muted-foreground">
-                          {Math.round(category.watchTime)} hours ({category.videoCount} videos)
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </AnimatedCard>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Category Comparison</CardTitle>
-                  <CardDescription>How your interests changed from {data.year - 1}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    {data.categoryComparison.map((comparison) => (
-                      <div key={comparison.categoryId} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span>{getCategoryName(comparison.categoryId)}</span>
-                          <div className="flex items-center gap-2">
-                            <span className={`text-sm font-medium ${comparison.change > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                              {comparison.change > 0 ? '+' : ''}{Math.round(comparison.change)}%
-                            </span>
-                            <span className="text-sm">
-                              from {Math.round(comparison.previousYear.percentage)}% in {data.year - 1}
-                            </span>
+              <AnimatedCard delay={100}>
+                <Card className="card-hover card-hero relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-transparent" />
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-purple-500" />
+                      Category Comparison
+                    </CardTitle>
+                    <CardDescription>How your interests changed from {data.year - 1}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {data.categoryComparison.map((comparison, index) => (
+                        <div key={comparison.categoryId} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{getCategoryName(comparison.categoryId)}</span>
+                            <div className="flex items-center gap-2">
+                              <span className={`flex items-center gap-1 text-sm font-medium ${comparison.change > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                {comparison.change > 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                                {comparison.change > 0 ? '+' : ''}{Math.round(comparison.change)}%
+                              </span>
+                              <span className="text-sm text-muted-foreground">
+                                from {Math.round(comparison.previousYear.percentage)}%
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex h-2 w-full items-center gap-1">
+                            <div 
+                              className="h-full rounded-l-full bg-muted"
+                              style={{ width: `${comparison.previousYear.percentage}%` }}
+                            ></div>
+                            <div 
+                              className={`h-full rounded-r-full ${comparison.change > 0 ? 'bg-green-500' : 'bg-red-500'}`}
+                              style={{ width: `${Math.abs(comparison.change)}%` }}
+                            ></div>
                           </div>
                         </div>
-                        <div className="flex h-2 w-full items-center gap-1">
-                          <div 
-                            className={`h-full rounded-l-full bg-muted`}
-                            style={{ width: `${comparison.previousYear.percentage}%` }}
-                          ></div>
-                          <div 
-                            className={`h-full rounded-r-full ${comparison.change > 0 ? 'bg-green-500' : 'bg-red-500'}`}
-                            style={{ width: `${Math.abs(comparison.change)}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </AnimatedCard>
             </div>
 
             <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">

@@ -2,6 +2,7 @@ import { Film } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ShareStats } from "@/components/share-stats"
 import { UserProfile } from "@/components/user-profile"
+import { mockSummaryStats } from "@/lib/mock-data"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 
@@ -43,12 +44,7 @@ export function DashboardHeader() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <ShareStats 
-            stats={stats || {
-              watchTime: 247,
-              videosWatched: 1842,
-              topCategory: "Gaming",
-              topCreator: "MKBHD"
-            }}
+            stats={stats || mockSummaryStats}
             iconOnly={true}
           />
           <UserProfile />

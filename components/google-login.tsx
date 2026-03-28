@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { toast } from "@/hooks/use-toast"
 import { isWatchHistoryDataComplete } from "@/lib/indexeddb"
-import { processAndStoreWatchHistoryByYear } from "@/lib/process-watch-history"
+import { processAndStoreWatchHistoryByYear } from "@/lib/indexeddb"
 
 // Firebase imports would go here in a real implementation
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth"

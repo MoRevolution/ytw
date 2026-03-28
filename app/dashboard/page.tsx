@@ -43,6 +43,7 @@ import { CategoryStats } from "@/lib/fetch-dashboard-data"
 import { getChannelThumbnailCached } from "@/lib/youtube-api"
 import { WordCloudComponent } from "@/components/word-cloud"
 import { CreatorCard } from "@/components/creator-card"
+import { mockDashboardStats } from "@/lib/mock-data"
 
 // Category icons mapping
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -76,182 +77,6 @@ function getMarathonComparison(hours: number): string {
   return "A solid binge-watching session! 📺"
 }
 
-
-
-// Mock stats for sample user
-const mockStats = {
-  primaryYear: {
-    watchTime: 247,
-    videosWatched: 1842,
-    uniqueCreators: 312,
-    topCategory: "Gaming",
-    topCreator: "MKBHD",
-    year: 2023,
-    isComplete: true,
-    topCreators: [
-      { name: "MKBHD", watchTime: 42.3, videoCount: 85, channelId: "UCBJycsmduvYEL83R_U4JriQ", avgVideoDuration: 0.5, normalizedScore: 42.5 },
-      { name: "Linus Tech Tips", watchTime: 38.7, videoCount: 78, channelId: "UCXuqSBlHAE6Xw-yeJA0Tunw", avgVideoDuration: 0.5, normalizedScore: 39.0 },
-      { name: "Veritasium", watchTime: 29.5, videoCount: 60, channelId: "UCHnyfMqiRRG1u-2MsSQLbXA", avgVideoDuration: 0.49, normalizedScore: 30.0 },
-      { name: "Fireship", watchTime: 24.8, videoCount: 50, channelId: "UCsBjURrPoezykLs9EqgamOA", avgVideoDuration: 0.5, normalizedScore: 25.0 },
-      { name: "The Verge", watchTime: 20.1, videoCount: 45, channelId: "UCddiUEpeqJcYeBxXxIVlKCA", avgVideoDuration: 0.45, normalizedScore: 22.5 }
-    ],
-    monthlyVideoCounts: [120, 150, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360],
-    monthlyWatchTime: [12.5, 15.2, 18.7, 20.3, 22.1, 24.5, 26.8, 28.9, 30.2, 32.4, 34.7, 36.9],
-    categoryStats: [
-      { name: "Gaming", watchTime: 65.2, percentage: 32.5 },
-      { name: "Tech", watchTime: 56.8, percentage: 28.4 },
-      { name: "Music", watchTime: 36.0, percentage: 18.0 },
-      { name: "Education", watchTime: 24.0, percentage: 12.0 },
-      { name: "Entertainment", watchTime: 20.0, percentage: 10.0 }
-    ],
-    mostWatchedVideos: [
-      {
-        title: "These new computers are getting creepy… Copilot+ PC first look",
-        channel: "Fireship",
-        count: 12,
-        videoId: "hlwcZpEx2IY"
-      },
-      {
-        title: "iPhone 16/16 Pro Review: Times Have Changed!",
-        channel: "MKBHD",
-        count: 7,
-        videoId: "MRtg6A1f2Ko"
-      },
-      {
-        title: "What 'Follow Your Dreams' Misses | Harvey Mudd Commencement Speech 2024",
-        channel: "3blue1brown",
-        count: 5,
-        videoId: "W3I3kAg2J7w"
-      },
-      {
-        title: "Pro Climber pretends to be Old Man and tries all the hardest routes",
-        channel: "Magnus Midtbø",
-        count: 4,
-        videoId: "I0ukVL0H4fs"
-      },
-      {
-        title: "Turning children's glue into drinkable alcohol",
-        channel: "NileRed",
-        count: 3,
-        videoId: "QzP3vx8XadU"
-      }
-    ],
-    longestSession: {
-      duration: 4.5,
-      date: "2023-07-15T14:30:00Z",
-      category: "Gaming",
-      videos: [
-        {
-          title: "Minecraft Speedrun World Record",
-          channel: "Dream",
-          videoId: "dQw4w9WgXcQ",
-          likeCount: 1500000,
-          duration: "1:23:45"
-        },
-        {
-          title: "Minecraft Building Tips and Tricks",
-          channel: "Grian",
-          videoId: "dQw4w9WgXcQ",
-          likeCount: 800000,
-          duration: "45:30"
-        },
-        {
-          title: "Minecraft Redstone Tutorial",
-          channel: "Mumbo Jumbo",
-          videoId: "dQw4w9WgXcQ",
-          likeCount: 600000,
-          duration: "1:15:20"
-        }
-      ]
-    },
-    tags: [
-      "gaming",
-      "tech",
-      "tutorial",
-      "review",
-      "news",
-      "music",
-      "vlog",
-      "coding",
-      "react",
-      "javascript",
-      "python",
-      "ai",
-      "machine learning",
-      "web development"
-    ]
-  },
-  comparisonYear: {
-    watchTime: 210,
-    videosWatched: 1500,
-    uniqueCreators: 290,
-    topCategory: "Tech",
-    topCreator: "Linus Tech Tips",
-    year: 2022,
-    isComplete: true,
-    topCreators: [
-      { name: "Linus Tech Tips", watchTime: 45.2, videoCount: 90, channelId: "UCXuqSBlHAE6Xw-yeJA0Tunw", avgVideoDuration: 0.5, normalizedScore: 45.0 },
-      { name: "MKBHD", watchTime: 35.8, videoCount: 70, channelId: "UCBJycsmduvYEL83R_U4JriQ", avgVideoDuration: 0.51, normalizedScore: 35.0 },
-      { name: "The Verge", watchTime: 28.3, videoCount: 55, channelId: "UCddiUEpeqJcYeBxXxIVlKCA", avgVideoDuration: 0.51, normalizedScore: 27.5 },
-      { name: "Veritasium", watchTime: 25.6, videoCount: 50, channelId: "UCHnyfMqiRRG1u-2MsSQLbXA", avgVideoDuration: 0.51, normalizedScore: 25.0 },
-      { name: "Fireship", watchTime: 22.4, videoCount: 45, channelId: "UCsBjURrPoezykLs9EqgamOA", avgVideoDuration: 0.5, normalizedScore: 22.5 }
-    ],
-    monthlyVideoCounts: [100, 130, 160, 180, 200, 220, 240, 260, 280, 300, 320, 340],
-    monthlyWatchTime: [10.2, 13.5, 16.8, 18.2, 20.1, 22.4, 24.7, 26.8, 28.9, 30.2, 32.4, 34.6],
-    categoryStats: [
-      { name: "Tech", watchTime: 58.8, percentage: 28.0 },
-      { name: "Gaming", watchTime: 52.5, percentage: 25.0 },
-      { name: "Music", watchTime: 42.0, percentage: 20.0 },
-      { name: "Education", watchTime: 31.5, percentage: 15.0 },
-      { name: "Entertainment", watchTime: 25.2, percentage: 12.0 }
-    ],
-    mostWatchedVideos: [
-      {
-        title: "These new computers are getting creepy… Copilot+ PC first look",
-        channel: "Fireship",
-        count: 12,
-        videoId: "hlwcZpEx2IY"
-      },
-      {
-        title: "iPhone 16/16 Pro Review: Times Have Changed!",
-        channel: "MKBHD",
-        count: 7,
-        videoId: "MRtg6A1f2Ko"
-      },
-      {
-        title: "What 'Follow Your Dreams' Misses | Harvey Mudd Commencement Speech 2024",
-        channel: "3blue1brown",
-        count: 5,
-        videoId: "W3I3kAg2J7w"
-      },
-      {
-        title: "Pro Climber pretends to be Old Man and tries all the hardest routes",
-        channel: "Magnus Midtbø",
-        count: 4,
-        videoId: "I0ukVL0H4fs"
-      },
-      {
-        title: "Turning children's glue into drinkable alcohol",
-        channel: "NileRed",
-        count: 3,
-        videoId: "QzP3vx8XadU"
-      }
-    ],
-    tags: [
-      "tech",
-      "gaming",
-      "music",
-      "education",
-      "entertainment",
-      "tutorial",
-      "review",
-      "news",
-      "vlog",
-      "coding"
-    ]
-  }
-}
-
 export default function DashboardPage() {
   const { isLoggedIn, isAuthLoading, isSampleUser } = useAuth()
   const router = useRouter()
@@ -262,7 +87,7 @@ export default function DashboardPage() {
   const { stats, isLoading, error } = useDashboardStats({
     enabled: isLoggedIn,
     useMockData: isSampleUser,
-    mockData: mockStats as DashboardStatsResult,
+    mockData: mockDashboardStats as DashboardStatsResult,
   })
 
   // Redirect if not logged in (only after auth has finished loading)

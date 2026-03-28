@@ -4,11 +4,11 @@ import { useEffect, useState } from "react"
 import Image from "next/image"
 
 import { Progress } from "@/components/ui/progress"
-import { CreatorStats } from "@/lib/fetch-creators-data"
+import { CreatorStats } from "@/lib/fetch-dashboard-data"
 import { getChannelThumbnailCached } from "@/lib/youtube-api"
 
 interface CreatorCardProps {
-  creator: CreatorStats & { normalizedScore?: number }
+  creator: CreatorStats
   rank: number
   maxWatchTime: number
   comparisonCreator?: CreatorStats

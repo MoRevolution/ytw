@@ -20,7 +20,7 @@ export interface WatchHistoryEntry {
   duration: string // ISO 8601 duration format
 }
 
-interface CreatorStats {
+export interface CreatorStats {
   name: string
   watchTime: number
   videoCount: number
@@ -87,7 +87,7 @@ export async function fetchAvailableYears(): Promise<number[]> {
   return years
 }
 
-function calculateCategoryStats(entries: WatchHistoryEntry[]): CategoryStats[] {
+function calculateCategorySummary(entries: WatchHistoryEntry[]): CategoryStats[] {
   const categoryStats = entries.reduce((stats, entry) => {
     const categoryId = entry.category_id?.toString() || 'unknown'
     const categoryName = getCategoryName(categoryId)
@@ -269,7 +269,7 @@ export async function fetchYearStats(year: number): Promise<DashboardStats> {
     const currentYear = new Date().getFullYear()
     const currentMonth = new Date().getMonth() + 1
 
-    const categoryStats = calculateCategoryStats(entries)
+    const categoryStats = calculateCategorySummary(entries)
     const creatorStats = calculateCreatorStats(entries)
     
     // Calculate monthly watch time and video counts
