@@ -1,40 +1,55 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import Image from "next/image"
-import { ArrowLeft, Calendar, Clock, Film, Mail, MapPin, RefreshCw, Bug } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { UserProfile } from "@/components/user-profile"
-import { useAuth } from "@/contexts/auth-context"
-import { toast } from "@/hooks/use-toast"
-import { auth } from "@/lib/firebase"
-import { processAndStoreWatchHistoryByYear } from "@/lib/indexeddb"
-import { mockSummaryStats } from "@/lib/mock-data"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  Film,
+  Mail,
+  MapPin,
+  RefreshCw,
+  Bug,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { UserProfile } from "@/components/user-profile";
+import { useAuth } from "@/contexts/auth-context";
+import { toast } from "@/hooks/use-toast";
+import { auth } from "@/lib/firebase";
+import { processAndStoreWatchHistoryByYear } from "@/lib/indexeddb";
+import { mockSummaryStats } from "@/lib/mock-data";
 
 export default function ProfilePage() {
-  const { isLoggedIn, isAuthLoading, user, logout } = useAuth()
-  const router = useRouter()
-  const [isRefreshing, setIsRefreshing] = useState(false)
+  const { isLoggedIn, isAuthLoading, user, logout } = useAuth();
+  const router = useRouter();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Redirect if not logged in (only after auth has finished loading)
   useEffect(() => {
     if (!isAuthLoading && !isLoggedIn) {
-      router.push("/login")
+      router.push("/login");
     }
-  }, [isLoggedIn, isAuthLoading, router])
+  }, [isLoggedIn, isAuthLoading, router]);
 
   // If auth is loading or not logged in, don't render the page content
   if (isAuthLoading || !isLoggedIn) {
-    return null
+    return null;
   }
 
   const handleRefreshData = async () => {
-    setIsRefreshing(true)
+    setIsRefreshing(true);
     try {
       // Get the user's ID token
       const idToken = await auth.currentUser?.getIdToken();
@@ -42,11 +57,11 @@ export default function ProfilePage() {
         throw new Error("No authenticated user found");
       }
 
-      const response = await fetch('/api/users/get-history', {
-        method: 'GET',
+      const response = await fetch("/api/users/get-history", {
+        method: "GET",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
         },
       });
 
@@ -55,7 +70,7 @@ export default function ProfilePage() {
       }
 
       const { data } = await response.json();
-      
+
       if (!data) {
         throw new Error("No watch history data available");
       }
@@ -65,7 +80,8 @@ export default function ProfilePage() {
 
       toast({
         title: "Data refreshed",
-        description: "Your YouTube watch history has been successfully updated and processed.",
+        description:
+          "Your YouTube watch history has been successfully updated and processed.",
       });
     } catch (error: any) {
       console.error("Error refreshing data:", error.message);
@@ -75,12 +91,12 @@ export default function ProfilePage() {
         variant: "destructive",
       });
     } finally {
-      setIsRefreshing(false)
+      setIsRefreshing(false);
     }
-  }
+  };
 
   // Mock stats data
-  const userStats = mockSummaryStats
+  const userStats = mockSummaryStats;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -123,7 +139,9 @@ export default function ProfilePage() {
                       className="rounded-full border-4 border-background"
                     />
                   </div>
-                  <CardTitle className="mt-4">{user?.displayName || "User"}</CardTitle>
+                  <CardTitle className="mt-4">
+                    {user?.displayName || "User"}
+                  </CardTitle>
                   <CardDescription className="flex items-center gap-1">
                     <Mail className="h-3 w-3" />
                     {user?.email || "user@example.com"}
@@ -140,9 +158,9 @@ export default function ProfilePage() {
                   </div>
                   <Separator />
                   <div className="space-y-2">
-                    <Button 
-                      variant="outline" 
-                      className="w-full" 
+                    <Button
+                      variant="outline"
+                      className="w-full"
                       onClick={handleRefreshData}
                       disabled={isRefreshing}
                     >
@@ -158,7 +176,11 @@ export default function ProfilePage() {
                         </>
                       )}
                     </Button>
-                    <Button variant="destructive" className="w-full" onClick={logout}>
+                    <Button
+                      variant="destructive"
+                      className="w-full"
+                      onClick={logout}
+                    >
                       Log Out
                     </Button>
                   </div>
@@ -170,24 +192,38 @@ export default function ProfilePage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Your YouTube Stats</CardTitle>
-                  <CardDescription>Summary of your YouTube activity in 2023</CardDescription>
+                  <CardDescription>
+                    Summary of your YouTube activity in 2023
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="rounded-lg bg-muted p-4 text-center">
                       <Clock className="mx-auto h-6 w-6 text-primary" />
-                      <p className="mt-2 text-2xl font-bold">{userStats.watchTime}</p>
-                      <p className="text-sm text-muted-foreground">Hours Watched</p>
+                      <p className="mt-2 text-2xl font-bold">
+                        {userStats.watchTime}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Hours Watched
+                      </p>
                     </div>
                     <div className="rounded-lg bg-muted p-4 text-center">
                       <Film className="mx-auto h-6 w-6 text-primary" />
-                      <p className="mt-2 text-2xl font-bold">{userStats.videosWatched}</p>
-                      <p className="text-sm text-muted-foreground">Videos Watched</p>
+                      <p className="mt-2 text-2xl font-bold">
+                        {userStats.videosWatched}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Videos Watched
+                      </p>
                     </div>
                     <div className="rounded-lg bg-muted p-4 text-center">
                       <Calendar className="mx-auto h-6 w-6 text-primary" />
-                      <p className="mt-2 text-2xl font-bold">{userStats.uniqueCreators}</p>
-                      <p className="text-sm text-muted-foreground">Unique Creators</p>
+                      <p className="mt-2 text-2xl font-bold">
+                        {userStats.uniqueCreators}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Unique Creators
+                      </p>
                     </div>
                   </div>
 
@@ -196,8 +232,9 @@ export default function ProfilePage() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium">Privacy</h3>
                     <p className="text-sm text-muted-foreground">
-                      Your data is only used to generate your YouTube Wrapped insights. We don't share your viewing
-                      history with third parties.
+                      Your data is only used to generate your YouTube Wrapped
+                      insights. We don't share your viewing history with third
+                      parties.
                     </p>
                   </div>
                 </CardContent>
@@ -207,5 +244,5 @@ export default function ProfilePage() {
         </div>
       </main>
     </div>
-  )
+  );
 }

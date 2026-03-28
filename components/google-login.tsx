@@ -1,54 +1,56 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
-import { openDB } from "idb"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { openDB } from "idb";
 
-import { Button } from "@/components/ui/button"
-import { useAuth } from "@/contexts/auth-context"
-import { toast } from "@/hooks/use-toast"
-import { isWatchHistoryDataComplete } from "@/lib/indexeddb"
-import { processAndStoreWatchHistoryByYear } from "@/lib/indexeddb"
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/auth-context";
+import { toast } from "@/hooks/use-toast";
+import { isWatchHistoryDataComplete } from "@/lib/indexeddb";
+import { processAndStoreWatchHistoryByYear } from "@/lib/indexeddb";
 
 // Firebase imports would go here in a real implementation
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth"
-import { auth} from "@/lib/firebase"
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 interface GoogleLoginProps {
-  variant: "login" | "signup"
+  variant: "login" | "signup";
 }
 
 export function GoogleLogin({ variant }: GoogleLoginProps) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [dataLoadingStatus, setDataLoadingStatus] = useState<string | null>(null)
-  const router = useRouter()
-  const { login } = useAuth()
+  const [isLoading, setIsLoading] = useState(false);
+  const [dataLoadingStatus, setDataLoadingStatus] = useState<string | null>(
+    null,
+  );
+  const router = useRouter();
+  const { login } = useAuth();
 
   const handleGoogleLogin = async () => {
-    setIsLoading(true)
-    setDataLoadingStatus("Signing in with Google...")
+    setIsLoading(true);
+    setDataLoadingStatus("Signing in with Google...");
 
     try {
-      const provider = new GoogleAuthProvider()
-      provider.addScope("https://www.googleapis.com/auth/drive")
+      const provider = new GoogleAuthProvider();
+      provider.addScope("https://www.googleapis.com/auth/drive");
 
-      const result = await signInWithPopup(auth, provider)
-      const credential = GoogleAuthProvider.credentialFromResult(result)
-      const token = credential?.accessToken
-      const user = result.user
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const token = credential?.accessToken;
+      const user = result.user;
 
       if (!token) {
-        throw new Error("No access token available")
+        throw new Error("No access token available");
       }
 
-      setDataLoadingStatus("Creating your account...")
+      setDataLoadingStatus("Creating your account...");
 
       // Create/update user via API
-      const createUserResponse = await fetch('/api/users/create', {
-        method: 'POST',
+      const createUserResponse = await fetch("/api/users/create", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           uid: user.uid,
@@ -64,91 +66,111 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
       // Check if data exists in IndexedDB
       const hasCompleteData = await isWatchHistoryDataComplete();
       let isSampleUser = false;
-      
+
       if (!hasCompleteData) {
-        setDataLoadingStatus("Fetching your YouTube watch history...")
-        console.log("[Login] Watch history data not found or incomplete, fetching...");
-        
+        setDataLoadingStatus("Fetching your YouTube watch history...");
+        console.log(
+          "[Login] Watch history data not found or incomplete, fetching...",
+        );
+
         try {
           console.log("[Login] Getting ID token for API call...");
           const idToken = await user.getIdToken();
           console.log("[Login] ID token obtained, length:", idToken?.length);
-          
+
           console.log("[Login] Calling /api/users/get-history...");
-          const response = await fetch('/api/users/get-history', {
-            method: 'GET',
+          const response = await fetch("/api/users/get-history", {
+            method: "GET",
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${idToken}`,
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
             },
           });
-          
+
           console.log("[Login] Response status:", response.status);
-          
+
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             console.error("[Login] Error response:", errorData);
-            
+
             // Handle specific error types
-            if (errorData.error === 'NO_TAKEOUT_FOLDER') {
-              throw new Error('NO_TAKEOUT: ' + (errorData.message || 'No Takeout export found'));
+            if (errorData.error === "NO_TAKEOUT_FOLDER") {
+              throw new Error(
+                "NO_TAKEOUT: " +
+                  (errorData.message || "No Takeout export found"),
+              );
             }
-            if (errorData.error === 'TOKEN_ERROR') {
-              throw new Error('TOKEN_ERROR: ' + (errorData.message || 'Please re-login'));
+            if (errorData.error === "TOKEN_ERROR") {
+              throw new Error(
+                "TOKEN_ERROR: " + (errorData.message || "Please re-login"),
+              );
             }
-            if (errorData.error === 'INVALID_TAKEOUT') {
-              throw new Error('INVALID_TAKEOUT: ' + (errorData.message || 'Takeout missing history'));
+            if (errorData.error === "INVALID_TAKEOUT") {
+              throw new Error(
+                "INVALID_TAKEOUT: " +
+                  (errorData.message || "Takeout missing history"),
+              );
             }
-            
-            throw new Error(`Failed to fetch watch history: ${response.status} - ${errorData.message || errorData.details || 'Unknown error'}`);
+
+            throw new Error(
+              `Failed to fetch watch history: ${response.status} - ${errorData.message || errorData.details || "Unknown error"}`,
+            );
           }
-          
+
           const responseData = await response.json();
-          console.log("[Login] Response received, has data:", !!responseData.data);
-          
+          console.log(
+            "[Login] Response received, has data:",
+            !!responseData.data,
+          );
+
           const { data } = responseData;
-          
+
           if (!data) {
             throw new Error("No watch history data in response");
           }
-          
+
           console.log("[Login] Processing and storing watch history...");
           // Process and store the watch history data
           await processAndStoreWatchHistoryByYear(data);
           console.log("[Login] Watch history stored successfully!");
-          
+
           toast({
             title: "Data imported",
-            description: "Your YouTube watch history has been successfully imported.",
+            description:
+              "Your YouTube watch history has been successfully imported.",
           });
         } catch (error: any) {
           console.error("[Login] Watch history fetch error:");
           console.error("[Login] Error message:", error.message);
           console.error("[Login] Full error:", error);
-          
+
           // Show appropriate message based on error type
-          if (error.message.includes('NO_TAKEOUT')) {
+          if (error.message.includes("NO_TAKEOUT")) {
             toast({
               title: "No Takeout Export Found",
-              description: "Please create a Google Takeout export with your YouTube history first.",
+              description:
+                "Please create a Google Takeout export with your YouTube history first.",
               variant: "destructive",
             });
-          } else if (error.message.includes('TOKEN_ERROR')) {
+          } else if (error.message.includes("TOKEN_ERROR")) {
             toast({
               title: "Session Error",
-              description: "Please log out and log in again to refresh your session.",
+              description:
+                "Please log out and log in again to refresh your session.",
               variant: "destructive",
             });
-          } else if (error.message.includes('INVALID_TAKEOUT')) {
+          } else if (error.message.includes("INVALID_TAKEOUT")) {
             toast({
               title: "Invalid Takeout Export",
-              description: "Your Takeout export doesn't contain YouTube history. Please export again with history included.",
+              description:
+                "Your Takeout export doesn't contain YouTube history. Please export again with history included.",
               variant: "destructive",
             });
           } else {
             toast({
               title: "Using Sample Data",
-              description: "Could not fetch your watch history. You'll see sample data on the dashboard.",
+              description:
+                "Could not fetch your watch history. You'll see sample data on the dashboard.",
             });
           }
           isSampleUser = true;
@@ -156,38 +178,38 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
       } else {
         console.log("📦 Using existing watch history data from IndexedDB");
       }
-      
-      setDataLoadingStatus("Finalizing your data...")
-      
+
+      setDataLoadingStatus("Finalizing your data...");
+
       login({
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        isSampleUser
-      })
-      
+        isSampleUser,
+      });
+
       toast({
         title: isNewUser ? "Welcome!" : "Welcome back!",
-        description: isNewUser 
-          ? "Your account has been created successfully." 
+        description: isNewUser
+          ? "Your account has been created successfully."
           : "You have been successfully logged in.",
-      })
+      });
 
       router.push("/dashboard");
-
     } catch (error) {
-      console.error("Error during Google login process:", error)
+      console.error("Error during Google login process:", error);
       toast({
         title: "Error",
-        description: "An error occurred during the login process. Please try again.",
-      })
+        description:
+          "An error occurred during the login process. Please try again.",
+      });
     } finally {
       // Clean up loading states
-      setIsLoading(false)
-      setDataLoadingStatus(null)
+      setIsLoading(false);
+      setDataLoadingStatus(null);
     }
-  }
+  };
 
   return (
     <Button
@@ -222,9 +244,13 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
             />
             <path d="M1 1h22v22H1z" fill="none" />
           </svg>
-          <span className="ml-2">{variant === "login" ? "Sign in with Google" : "Sign up with Google"}</span>
+          <span className="ml-2">
+            {variant === "login"
+              ? "Sign in with Google"
+              : "Sign up with Google"}
+          </span>
         </>
       )}
     </Button>
-  )
+  );
 }
