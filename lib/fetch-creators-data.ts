@@ -1,7 +1,7 @@
-import { openDB } from "idb"
-import { DB_NAME, FILES_STORE } from './constants'
 import { WatchHistoryEntry } from './fetch-dashboard-data'
 import { getChannelThumbnailCached } from './youtube-api'
+import { parseISODuration } from './utils'
+import { getYearData } from './indexeddb'
 
 export interface CreatorStats {
   name: string
@@ -21,17 +21,11 @@ export async function fetchCreatorStats(year: number): Promise<{
   topCreators: CreatorStats[]
   categories: CreatorCategory[]
 }> {
-  const db = await openDB(DB_NAME, 1)
-  const tx = db.transaction(FILES_STORE, "readonly")
-  const store = tx.objectStore(FILES_STORE)
+  const entries = await getYearData(year) as WatchHistoryEntry[] | null
   
-  const data = await store.get(`watch-history-${year}`)
-  
-  if (!data) {
+  if (!entries) {
     throw new Error(`No data found for year ${year}`)
   }
-  
-  const entries = JSON.parse(data.content) as WatchHistoryEntry[]
   
   // Calculate creator stats
   const creatorStats = calculateCreatorStats(entries)
@@ -102,14 +96,3 @@ function calculateCreatorCategories(creators: CreatorStats[]): CreatorCategory[]
     .sort((a, b) => b.percentage - a.percentage)
 }
 
-function parseISODuration(duration: string): number {
-  if (!duration) return 0
-  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
-  if (!match) return 0
-
-  const hours = parseInt(match[1] || '0', 10)
-  const minutes = parseInt(match[2] || '0', 10)
-  const seconds = parseInt(match[3] || '0', 10)
-
-  return hours + (minutes / 60) + (seconds / 3600)
-} 

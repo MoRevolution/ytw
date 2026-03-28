@@ -1,9 +1,9 @@
-import { openDB } from "idb"
-import { DB_NAME, FILES_STORE } from './constants'
 import { getCategoryName } from './youtube-categories'
 import { logger } from './logger'
+import { parseISODuration, getCurrentAnalysisYear } from './utils'
+import { getYearData } from './indexeddb'
 
-interface WatchHistoryEntry {
+export interface WatchHistoryEntry {
   title: string
   video_id: string
   channel_name: string
@@ -74,34 +74,17 @@ export interface YearComparison {
 }
 
 export async function fetchAvailableYears(): Promise<number[]> {
-  const db = await openDB(DB_NAME, 1)
-  const tx = db.transaction(FILES_STORE, "readonly")
-  const store = tx.objectStore(FILES_STORE)
-  
   const currentYear = new Date().getFullYear()
   const years = []
   
-  // Check for data from current year back to 2020
   for (let year = currentYear; year >= 2020; year--) {
-    const data = await store.get(`watch-history-${year}`)
+    const data = await getYearData(year)
     if (data) {
       years.push(year)
     }
   }
   
   return years
-}
-
-function parseISODuration(duration: string): number {
-  if (!duration) return 0; // Handle undefined or empty duration
-  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  if (!match) return 0;
-
-  const hours = parseInt(match[1] || '0', 10);
-  const minutes = parseInt(match[2] || '0', 10);
-  const seconds = parseInt(match[3] || '0', 10);
-
-  return hours + (minutes / 60) + (seconds / 3600);
 }
 
 function calculateCategoryStats(entries: WatchHistoryEntry[]): CategoryStats[] {
@@ -272,39 +255,24 @@ function calculateLongestSession(entries: WatchHistoryEntry[]): DashboardStats['
 }
 
 export async function fetchYearStats(year: number): Promise<DashboardStats> {
-  console.log(`🔄 Fetching stats for year ${year}...`)
-  const db = await openDB(DB_NAME, 1)
-  const tx = db.transaction(FILES_STORE, "readonly")
-  const store = tx.objectStore(FILES_STORE)
+  logger.log(`[fetchYearStats] Loading year ${year}`)
+  const entries = await getYearData(year) as WatchHistoryEntry[] | null
   
-  const data = await store.get(`watch-history-${year}`)
-  console.log(`📦 Retrieved data for year ${year}:`, data ? 'exists' : 'not found')
-  
-  if (!data) {
-    console.error(`❌ No data found for year ${year}`)
+  if (!entries) {
+    logger.error(`[fetchYearStats] No data found for year ${year}`)
     throw new Error(`No data found for year ${year}`)
   }
   
   try {
-    console.log('🔄 Parsing watch history data...')
-    const entries = JSON.parse(data.content) as WatchHistoryEntry[]
-    console.log(`✅ Successfully parsed ${entries.length} entries`)
+    logger.log(`[fetchYearStats] Parsed ${entries.length} entries for ${year}`)
     
     const currentYear = new Date().getFullYear()
     const currentMonth = new Date().getMonth() + 1
 
-    // Calculate category stats
-    console.log('🔄 Calculating category stats...')
     const categoryStats = calculateCategoryStats(entries)
-    console.log('✅ Category stats calculated:', categoryStats)
-    
-    // Calculate creator stats
-    console.log('🔄 Calculating creator stats...')
     const creatorStats = calculateCreatorStats(entries)
-    console.log('✅ Creator stats calculated:', creatorStats)
     
     // Calculate monthly watch time and video counts
-    console.log('🔄 Calculating monthly stats...')
     const monthlyWatchTime = Array(12).fill(0)
     const monthlyVideoCounts = Array(12).fill(0)
     
@@ -318,17 +286,8 @@ export async function fetchYearStats(year: number): Promise<DashboardStats> {
       }
     })
     
-    console.log('✅ Monthly watch time calculated:', monthlyWatchTime)
-    console.log('✅ Monthly video counts calculated:', monthlyVideoCounts)
-    
-    // Calculate total watch time
     const totalWatchTime = monthlyWatchTime.reduce((sum, hours) => sum + hours, 0)
-    console.log('✅ Total watch time calculated:', totalWatchTime)
-    
-    // Extract tags from entries
-    console.log('🔄 Extracting tags from entries...')
     const tags = extractTagsFromEntries(entries)
-    console.log('✅ Tags extracted:', tags)
     
     const stats = {
       watchTime: totalWatchTime,
@@ -347,11 +306,10 @@ export async function fetchYearStats(year: number): Promise<DashboardStats> {
       tags
     }
     
-    console.log('✅ Final stats calculated:', stats)
+    logger.log(`[fetchYearStats] Completed for ${year}: ${Math.round(totalWatchTime)}h, ${entries.length} videos`)
     return stats
   } catch (error) {
-    console.error('❌ Error in fetchYearStats:', error)
-    console.error('Problematic data:', data)
+    logger.error('[fetchYearStats] Failed:', error)
     throw error
   }
 }
@@ -437,60 +395,43 @@ function calculateMostWatchedVideo(entries: WatchHistoryEntry[]): { title: strin
 }
 
 export async function fetchDefaultComparison(): Promise<YearComparison> {
-  console.log('🔄 Starting fetchDefaultComparison...')
   const availableYears = await fetchAvailableYears()
-  console.log('📅 Available years:', availableYears)
   
   if (availableYears.length === 0) {
-    console.error('❌ No watch history data available')
     throw new Error("No watch history data available")
   }
   
-  // Sort years in descending order
   availableYears.sort((a, b) => b - a)
-  console.log('📅 Sorted years:', availableYears)
   
-  // Find the most recent complete year
   const currentYear = new Date().getFullYear()
   const currentMonth = new Date().getMonth() + 1
-  console.log('📅 Current year/month:', currentYear, currentMonth)
   
   let primaryYear = availableYears[0]
   let comparisonYear: number | undefined
   
-  // If the most recent year is the current year and it's not December yet,
-  // use the previous year as primary
   if (primaryYear === currentYear && currentMonth < 12) {
-    console.log('📅 Using previous year as primary since current year is incomplete')
     primaryYear = availableYears[1] || primaryYear
     comparisonYear = availableYears[2]
   } else {
     comparisonYear = availableYears[1]
   }
   
-  console.log('📅 Selected years - Primary:', primaryYear, 'Comparison:', comparisonYear)
+  logger.log(`[fetchDefaultComparison] Primary: ${primaryYear}, Comparison: ${comparisonYear ?? 'none'}`)
   
   try {
-    console.log('🔄 Fetching primary year stats...')
     const primaryStats = await fetchYearStats(primaryYear)
-    console.log('✅ Primary stats fetched successfully:', primaryStats)
     
     let comparisonStats = undefined
     if (comparisonYear) {
-      console.log('🔄 Fetching comparison year stats...')
       comparisonStats = await fetchYearStats(comparisonYear)
-      console.log('✅ Comparison stats fetched successfully:', comparisonStats)
     }
     
-    const result = {
+    return {
       primaryYear: primaryStats,
       comparisonYear: comparisonStats
     }
-    
-    console.log('✅ Final comparison result:', result)
-    return result
   } catch (error) {
-    console.error('❌ Error in fetchDefaultComparison:', error)
+    logger.error('[fetchDefaultComparison] Failed:', error)
     throw error
   }
 }

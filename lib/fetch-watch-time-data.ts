@@ -1,6 +1,6 @@
-import { openDB } from "idb"
-import { DB_NAME, FILES_STORE } from './constants'
 import { logger } from "./logger"
+import { parseISODuration } from './utils'
+import { getYearData } from './indexeddb'
 
 interface WatchHistoryEntry {
   channel_name: string
@@ -62,23 +62,7 @@ interface WatchTimeStats {
   }
 }
 
-function parseISODuration(duration: string): number {
-  if (!duration) {
-    console.warn('⚠️ Empty duration string received')
-    return 0
-  }
-  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
-  if (!match) {
-    console.warn('⚠️ Invalid duration format:', duration)
-    return 0
-  }
 
-  const hours = parseInt(match[1] || '0', 10)
-  const minutes = parseInt(match[2] || '0', 10)
-  const seconds = parseInt(match[3] || '0', 10)
-
-  return hours + (minutes / 60) + (seconds / 3600)
-}
 
 // Function to convert UTC to Central Time (UTC-6)
 function convertToCentralTime(date: Date): Date {
@@ -352,36 +336,26 @@ function calculateWatchTimeStats(entries: WatchHistoryEntry[], year: number): Wa
 export async function fetchWatchTimeStats(year: number): Promise<WatchTimeStats> {
   try {
     const currentYear = new Date().getFullYear()
-    const currentMonth = new Date().getMonth() + 1 // 1-12
+    const currentMonth = new Date().getMonth() + 1
 
-    // If requesting current year and it's not December yet, use previous year
     if (year === currentYear && currentMonth < 12) {
-      console.log('📅 Using previous year since current year is incomplete')
+      logger.log('[fetchWatchTimeStats] Current year incomplete, falling back to previous year')
       year = currentYear - 1
     }
 
-    const db = await openDB(DB_NAME, 1)
-    const tx = db.transaction(FILES_STORE, "readonly")
-    const store = tx.objectStore(FILES_STORE)
+    const entries = await getYearData(year) as WatchHistoryEntry[] | null
     
-    // Get current year's data
-    const data = await store.get(`watch-history-${year}`)
-    
-    if (!data) {
-      console.error('❌ No watch history data found for year:', year)
+    if (!entries) {
+      logger.error(`[fetchWatchTimeStats] No data found for year ${year}`)
       throw new Error(`No watch history data found for year ${year}`)
     }
     
-    const entries = JSON.parse(data.content) as WatchHistoryEntry[]
     const stats = calculateWatchTimeStats(entries, year)
 
-    // Get previous year's data for comparison
     const previousYear = year - 1
-    console.log('🔄 Fetching previous year data:', previousYear)
-    const previousYearData = await store.get(`watch-history-${previousYear}`)
+    const previousYearEntries = await getYearData(previousYear) as WatchHistoryEntry[] | null
     
-    if (previousYearData) {
-      const previousYearEntries = JSON.parse(previousYearData.content) as WatchHistoryEntry[]
+    if (previousYearEntries) {
       const previousYearStats = calculateWatchTimeStats(previousYearEntries, previousYear)
       
       stats.previousYearStats = {
@@ -391,23 +365,11 @@ export async function fetchWatchTimeStats(year: number): Promise<WatchTimeStats>
       }
     }
     
-    // Log final stats that will hydrate the UI
-    console.log('📊 Watch Time Stats:', {
-      year,
-      totalWatchTime: `${Math.round(stats.totalWatchTime)} hours`,
-      averageDailyWatchTime: `${Math.round(stats.averageDailyWatchTime * 60)} minutes`,
-      averageVideoLength: `${Math.round(stats.averageVideoLength * 60)} minutes`,
-      dailyWatchTimeEntries: stats.dailyWatchTime.length,
-      videoLengthDistribution: stats.videoLengthDistribution,
-      previousYearComparison: stats.previousYearStats ? {
-        averageDailyWatchTime: `${Math.round(stats.previousYearStats.averageDailyWatchTime * 60)} minutes`,
-        averageVideoLength: `${Math.round(stats.previousYearStats.averageVideoLength * 60)} minutes`
-      } : 'No previous year data available'
-    })
+    logger.log(`[fetchWatchTimeStats] Completed for ${year}: ${Math.round(stats.totalWatchTime)}h total`)
     
     return stats
   } catch (error) {
-    console.error('❌ Error in fetchWatchTimeStats:', error)
+    logger.error('[fetchWatchTimeStats] Failed:', error)
     throw error
   }
 } 

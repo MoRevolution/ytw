@@ -1,7 +1,7 @@
-import { openDB } from "idb"
-import { DB_NAME, FILES_STORE } from './constants'
 import { youtubeCategories } from './youtube-categories'
 import { logger } from "./logger"
+import { parseISODuration, getCurrentAnalysisYear } from './utils'
+import { getYearData } from './indexeddb'
 
 interface VideoStats {
   videoId: string
@@ -37,24 +37,6 @@ interface CategoryData {
   totalWatchTime: number
   categoryDistribution: CategoryStats[]
   categoryComparison: CategoryComparison[]
-}
-
-function parseISODuration(duration: string): number {
-  if (!duration) {
-    console.warn('⚠️ Empty duration string received')
-    return 0
-  }
-  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
-  if (!match) {
-    console.warn('⚠️ Invalid duration format:', duration)
-    return 0
-  }
-
-  const hours = parseInt(match[1] || '0', 10)
-  const minutes = parseInt(match[2] || '0', 10)
-  const seconds = parseInt(match[3] || '0', 10)
-
-  return hours + (minutes / 60) + (seconds / 3600)
 }
 
 function calculateCategoryStats(entries: any[], year: number): CategoryData {
@@ -179,7 +161,7 @@ function getCachedData(year: number): CategoryData | null {
     const cached = localStorage.getItem(`${CACHE_KEY_PREFIX}${year}`)
     return cached ? JSON.parse(cached) : null
   } catch (error) {
-    console.error('Error reading from cache:', error)
+    logger.error('Error reading from cache:', error)
     return null
   }
 }
@@ -188,7 +170,7 @@ function setCachedData(year: number, data: CategoryData): void {
   try {
     localStorage.setItem(`${CACHE_KEY_PREFIX}${year}`, JSON.stringify(data))
   } catch (error) {
-    console.error('Error writing to cache:', error)
+    logger.error('Error writing to cache:', error)
   }
 }
 
@@ -197,41 +179,30 @@ export async function fetchCategoryData(year: number): Promise<CategoryData> {
     const currentYear = new Date().getFullYear()
     const currentMonth = new Date().getMonth() + 1
 
-    // If requesting current year and it's not December yet, use previous year
     if (year === currentYear && currentMonth < 12) {
-      console.log('📅 Using previous year since current year is incomplete')
+      logger.log('[fetchCategoryData] Current year incomplete, falling back to previous year')
       year = currentYear - 1
     }
 
-    // Check cache first
     const cachedData = getCachedData(year)
     if (cachedData) {
-      console.log('📦 Using cached category data')
+      logger.log('[fetchCategoryData] Using cached data')
       return cachedData
     }
 
-    const db = await openDB(DB_NAME, 1)
-    const tx = db.transaction(FILES_STORE, "readonly")
-    const store = tx.objectStore(FILES_STORE)
+    const entries = await getYearData(year)
     
-    // Get current year's data
-    const data = await store.get(`watch-history-${year}`)
-    
-    if (!data) {
-      console.error('❌ No watch history data found for year:', year)
+    if (!entries) {
+      logger.error(`[fetchCategoryData] No data found for year ${year}`)
       throw new Error(`No watch history data found for year ${year}`)
     }
     
-    const entries = JSON.parse(data.content)
     const currentYearData = calculateCategoryStats(entries, year)
 
-    // Get previous year's data for comparison
     const previousYear = year - 1
-    console.log('🔄 Fetching previous year data:', previousYear)
-    const previousYearData = await store.get(`watch-history-${previousYear}`)
+    const previousYearEntries = await getYearData(previousYear)
     
-    if (previousYearData) {
-      const previousYearEntries = JSON.parse(previousYearData.content)
+    if (previousYearEntries) {
       const previousYearStats = calculateCategoryStats(previousYearEntries, previousYear)
       
       currentYearData.categoryComparison = calculateCategoryComparison(
@@ -259,7 +230,7 @@ export async function fetchCategoryData(year: number): Promise<CategoryData> {
     
     return currentYearData
   } catch (error) {
-    console.error('❌ Error in fetchCategoryData:', error)
+    logger.error('[fetchCategoryData] Failed:', error)
     throw error
   }
 } 

@@ -47,6 +47,19 @@ export async function isDataInIndexedDB(fileId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Reads parsed watch history entries for a given year from IndexedDB.
+ * Returns null if no data exists for that year.
+ */
+export async function getYearData(year: number): Promise<any[] | null> {
+  const db = await initDB()
+  const tx = db.transaction(FILES_STORE, "readonly")
+  const store = tx.objectStore(FILES_STORE)
+  const data = await store.get(`watch-history-${year}`)
+  if (!data) return null
+  return JSON.parse(data.content)
+}
+
 export async function storeDataInIndexedDB(data: { [key: string]: string }) {
   let db: IDBPDatabase | null = null
   
