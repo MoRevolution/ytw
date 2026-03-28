@@ -187,7 +187,7 @@ export default function WatchTimePage() {
     const fetchData = async () => {
       try {
         if (isSampleUser) {
-          console.log("📊 Using mock data for sample user");
+          console.log("[WatchTimePage] Using mock data for sample user");
           setStats(processWatchTimeData(mockWatchTimeStats as WatchTimeStats));
           setIsLoading(false);
           return;
@@ -196,13 +196,16 @@ export default function WatchTimePage() {
         // Get the most recent complete year (2024 since 2025 is incomplete)
         const currentYear = new Date().getFullYear();
         const yearToAnalyze = currentYear - 1; // Use 2024 since 2025 is incomplete
-        console.log("🔄 Fetching watch time stats for year:", yearToAnalyze);
+        console.log(
+          "[WatchTimePage] Fetching watch time stats for year:",
+          yearToAnalyze,
+        );
 
         // Check cache first
         const cachedStats = getCachedStats(yearToAnalyze);
 
         if (cachedStats) {
-          console.log("📦 Using cached stats");
+          console.log("[WatchTimePage] Using cached stats");
           setStats(processWatchTimeData(cachedStats));
           setIsLoading(false);
           return;
@@ -227,8 +230,10 @@ export default function WatchTimePage() {
 
         setStats(processWatchTimeData(statsWithYear));
       } catch (error) {
-        console.error("❌ Error fetching watch time stats:", error);
-        console.log("⚠️ Using mock data as fallback");
+        console.error(
+          "[WatchTimePage] Error fetching watch time stats:",
+          error,
+        );
         setStats(processWatchTimeData(mockWatchTimeStats as WatchTimeStats));
       } finally {
         setIsLoading(false);
@@ -342,7 +347,7 @@ export default function WatchTimePage() {
             <div className="grid gap-6 md:grid-cols-3">
               <AnimatedCard delay={0}>
                 <Card className="card-hover card-hero relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 via-transparent to-transparent" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-red-500/10 via-transparent to-transparent" />
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2">
                       <Clock className="h-5 w-5 text-red-500" />
@@ -378,7 +383,7 @@ export default function WatchTimePage() {
               </AnimatedCard>
               <AnimatedCard delay={100}>
                 <Card className="card-hover card-hero relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent" />
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2">
                       <Calendar className="h-5 w-5 text-blue-500" />
@@ -433,7 +438,7 @@ export default function WatchTimePage() {
               </AnimatedCard>
               <AnimatedCard delay={200}>
                 <Card className="card-hover card-hero relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-transparent" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-transparent" />
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2">
                       <Target className="h-5 w-5 text-purple-500" />

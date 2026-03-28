@@ -226,10 +226,10 @@ export default function CreatorsPage() {
           cachedTimestamp &&
           now - parseInt(cachedTimestamp) < 3600000
         ) {
-          console.log("📊 Using cached creator stats");
+          console.log("[CreatorsPage] Using cached creator stats");
           data = JSON.parse(cachedData);
         } else {
-          console.log("🔄 Fetching new creator stats...");
+          console.log("[CreatorsPage] Fetching new creator stats...");
           data = await fetchDefaultComparison();
           localStorage.setItem("creatorStats", JSON.stringify(data));
           localStorage.setItem("creatorStatsTimestamp", now.toString());
@@ -270,7 +270,7 @@ export default function CreatorsPage() {
         const thumbnailMap = Object.fromEntries(thumbnailResults);
         setThumbnails(thumbnailMap);
       } catch (error) {
-        console.error("❌ Error in fetchData:", error);
+        console.error("[CreatorsPage] Error in fetchData:", error);
         setStats(
           mockCreatorStats as {
             primaryYear: DashboardStats;

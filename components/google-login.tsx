@@ -176,7 +176,9 @@ export function GoogleLogin({ variant }: GoogleLoginProps) {
           isSampleUser = true;
         }
       } else {
-        console.log("📦 Using existing watch history data from IndexedDB");
+        console.log(
+          "[GoogleLogin] Using existing watch history data from IndexedDB",
+        );
       }
 
       setDataLoadingStatus("Finalizing your data...");

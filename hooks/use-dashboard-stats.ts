@@ -101,14 +101,14 @@ export function useDashboardStats({
       // Check cache first
       const cached = getCache()
       if (cached) {
-        console.log("📊 Using cached dashboard stats")
+        console.log("[useDashboardStats] Using cached dashboard stats")
         setStats(cached)
         setIsLoading(false)
         return
       }
 
       // Fetch fresh data
-      console.log("🔄 Fetching new dashboard stats...")
+      console.log("[useDashboardStats] Fetching new dashboard stats...")
       const data = await fetchDefaultComparison()
       
       // Validate data before caching
@@ -116,14 +116,14 @@ export function useDashboardStats({
       
       setStats(data)
       setCache(data)
-      console.log("✅ Dashboard stats loaded and cached")
+      console.log("[useDashboardStats] Dashboard stats loaded and cached")
     } catch (err) {
-      console.error("❌ Error fetching dashboard stats:", err)
+      console.error("[useDashboardStats] Error fetching dashboard stats:", err)
       setError(err instanceof Error ? err : new Error("Failed to fetch stats"))
       
       // Fallback to mock data if available
       if (mockData) {
-        console.log("⚠️ Using mock stats as fallback")
+        console.log("[useDashboardStats] Using mock stats as fallback")
         setStats(mockData)
       }
     } finally {
