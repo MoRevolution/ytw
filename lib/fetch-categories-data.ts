@@ -32,14 +32,22 @@ interface CategoryComparison {
   change: number
 }
 
-interface CategoryData {
+interface MonthlyCategoryEntry {
+  month: string  // "Jan", "Feb", etc.
+  [categoryId: string]: number | string  // watchTime per category + "month" key
+}
+
+export interface CategoryData {
   year: number
   totalWatchTime: number
   categoryDistribution: CategoryStats[]
   categoryComparison: CategoryComparison[]
+  monthlyBreakdown: MonthlyCategoryEntry[]
 }
 
 function calculateCategoryStats(entries: any[], year: number): CategoryData {
+  const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
   // Group entries by category and video
   const categoryStats = new Map<string, { 
     watchTime: number
@@ -52,6 +60,9 @@ function calculateCategoryStats(entries: any[], year: number): CategoryData {
     }>
   }>()
   let totalWatchTime = 0
+
+  // Monthly tracking: month index → categoryId → hours
+  const monthlyMap = new Map<number, Map<string, number>>()
 
   entries.forEach(entry => {
     const categoryId = entry.category_id?.toString() || 'unknown'
@@ -70,6 +81,13 @@ function calculateCategoryStats(entries: any[], year: number): CategoryData {
     stats.watchTime += duration
     stats.videoCount += 1
     totalWatchTime += duration
+
+    // Track monthly breakdown
+    const watchDate = new Date(entry.time_watched || entry.time)
+    const monthIdx = watchDate.getMonth()
+    if (!monthlyMap.has(monthIdx)) monthlyMap.set(monthIdx, new Map())
+    const monthCats = monthlyMap.get(monthIdx)!
+    monthCats.set(categoryId, (monthCats.get(categoryId) || 0) + duration)
 
     // Track video stats
     if (!stats.videos.has(videoId)) {
@@ -110,11 +128,29 @@ function calculateCategoryStats(entries: any[], year: number): CategoryData {
     .sort((a, b) => b.watchTime - a.watchTime)
     .slice(0, 5) // Only keep top 5 categories
 
+  // Build monthly breakdown for the top 5 categories
+  const top5Ids = new Set(categoryDistribution.map(c => c.categoryId))
+  const monthlyBreakdown: MonthlyCategoryEntry[] = MONTH_NAMES.map((name, idx) => {
+    const row: MonthlyCategoryEntry = { month: name }
+    const monthCats = monthlyMap.get(idx)
+    if (monthCats) {
+      for (const catId of top5Ids) {
+        row[catId] = Math.round((monthCats.get(catId) || 0) * 10) / 10
+      }
+    } else {
+      for (const catId of top5Ids) {
+        row[catId] = 0
+      }
+    }
+    return row
+  })
+
   return {
     year,
     totalWatchTime,
     categoryDistribution,
-    categoryComparison: [] // Initialize empty array
+    categoryComparison: [], // Initialize empty array
+    monthlyBreakdown
   }
 }
 

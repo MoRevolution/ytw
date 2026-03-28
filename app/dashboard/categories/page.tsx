@@ -2,9 +2,31 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import Image from "next/image";
-import { Play, TrendingUp, TrendingDown, Sparkles, Layers } from "lucide-react";
+import {
+  Play,
+  TrendingUp,
+  TrendingDown,
+  Sparkles,
+  Layers,
+  BarChart3,
+  Film,
+} from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Legend,
+} from "recharts";
 import {
   Card,
   CardContent,
@@ -13,7 +35,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnimatedCard, AnimatedStat } from "@/components/animated-card";
 import { useAuth } from "@/contexts/auth-context";
 import { DashboardHeader } from "@/components/dashboard-header";
@@ -50,6 +71,10 @@ interface CategoryData {
     };
     change: number;
   }[];
+  monthlyBreakdown?: {
+    month: string;
+    [categoryId: string]: number | string;
+  }[];
 }
 
 // Add localStorage cache helpers
@@ -78,6 +103,9 @@ export default function CategoriesPage() {
   const router = useRouter();
   const [data, setData] = useState<CategoryData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Redirect if not logged in (only after auth has finished loading)
   useEffect(() => {
@@ -177,13 +205,28 @@ export default function CategoriesPage() {
     );
   }
 
-  const categoryColors = {
-    "20": "bg-red-500", // Gaming
-    "28": "bg-blue-500", // Tech
-    "10": "bg-green-500", // Music
-    "27": "bg-yellow-500", // Education
-    "24": "bg-purple-500", // Entertainment
+  const categoryColors: Record<string, string> = {
+    "20": "bg-red-500",
+    "28": "bg-blue-500",
+    "10": "bg-green-500",
+    "27": "bg-yellow-500",
+    "24": "bg-purple-500",
   };
+
+  const chartColors: Record<string, string> = {
+    "20": "#ef4444",
+    "28": "#3b82f6",
+    "10": "#22c55e",
+    "27": "#eab308",
+    "24": "#a855f7",
+  };
+
+  // Radar chart data — current vs previous year percentages
+  const radarData = data.categoryComparison.map((comp) => ({
+    category: getCategoryName(comp.categoryId),
+    [String(data.year)]: Math.round(comp.currentYear.percentage),
+    [String(data.year - 1)]: Math.round(comp.previousYear.percentage),
+  }));
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -203,10 +246,196 @@ export default function CategoriesPage() {
               </p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
+            {/* ── Hero: Category Evolution ── */}
+            {data.monthlyBreakdown && data.monthlyBreakdown.length > 0 && (
               <AnimatedCard delay={0}>
-                <Card className="card-hover card-hero relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent" />
+                <Card className="card-hover card-hero relative overflow-hidden mb-8">
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-transparent" />
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 text-indigo-500" />
+                      Category Evolution
+                    </CardTitle>
+                    <CardDescription>
+                      How your interests shifted throughout {data.year}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart
+                          data={data.monthlyBreakdown.map((row) => {
+                            const filtered = { ...row };
+                            hiddenCategories.forEach((id) => {
+                              filtered[id] = 0;
+                            });
+                            return filtered;
+                          })}
+                          margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+                        >
+                          <defs>
+                            {data.categoryDistribution.map((cat) => (
+                              <linearGradient
+                                key={cat.categoryId}
+                                id={`grad-${cat.categoryId}`}
+                                x1="0"
+                                y1="0"
+                                x2="0"
+                                y2="1"
+                              >
+                                <stop
+                                  offset="5%"
+                                  stopColor={
+                                    chartColors[cat.categoryId] || "#888"
+                                  }
+                                  stopOpacity={0.4}
+                                />
+                                <stop
+                                  offset="95%"
+                                  stopColor={
+                                    chartColors[cat.categoryId] || "#888"
+                                  }
+                                  stopOpacity={0.05}
+                                />
+                              </linearGradient>
+                            ))}
+                          </defs>
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="hsl(var(--border))"
+                            opacity={0.3}
+                          />
+                          <XAxis
+                            dataKey="month"
+                            tick={{ fontSize: 12 }}
+                            stroke="hsl(var(--muted-foreground))"
+                          />
+                          <YAxis
+                            tick={{ fontSize: 12 }}
+                            stroke="hsl(var(--muted-foreground))"
+                            tickFormatter={(v) => `${v}h`}
+                          />
+                          <Tooltip
+                            content={({ active, payload, label }) => {
+                              if (!active || !payload?.length) return null;
+                              const visible = payload.filter(
+                                (p) =>
+                                  !hiddenCategories.has(p.dataKey as string),
+                              );
+                              const total = visible.reduce(
+                                (sum, p) => sum + (Number(p.value) || 0),
+                                0,
+                              );
+                              return (
+                                <div className="rounded-lg border bg-card p-3 shadow-lg">
+                                  <p className="mb-2 font-medium">{label}</p>
+                                  {visible.map((entry) => (
+                                    <div
+                                      key={entry.dataKey}
+                                      className="flex items-center justify-between gap-6 text-sm"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <div
+                                          className="h-2 w-2 rounded-full"
+                                          style={{
+                                            backgroundColor: entry.color,
+                                          }}
+                                        />
+                                        <span className="text-muted-foreground">
+                                          {getCategoryName(
+                                            entry.dataKey as string,
+                                          )}
+                                        </span>
+                                      </div>
+                                      <span className="font-medium">
+                                        {Number(entry.value).toFixed(1)}h
+                                      </span>
+                                    </div>
+                                  ))}
+                                  <div className="mt-2 border-t pt-2 flex justify-between text-sm font-medium">
+                                    <span>Total</span>
+                                    <span>{total.toFixed(1)}h</span>
+                                  </div>
+                                </div>
+                              );
+                            }}
+                          />
+                          {data.categoryDistribution.map((cat) => (
+                            <Area
+                              key={cat.categoryId}
+                              type="monotone"
+                              dataKey={cat.categoryId}
+                              stackId="1"
+                              stroke={
+                                hiddenCategories.has(cat.categoryId)
+                                  ? "transparent"
+                                  : chartColors[cat.categoryId] || "#888"
+                              }
+                              fill={
+                                hiddenCategories.has(cat.categoryId)
+                                  ? "transparent"
+                                  : `url(#grad-${cat.categoryId})`
+                              }
+                              strokeWidth={2}
+                              activeDot={
+                                hiddenCategories.has(cat.categoryId)
+                                  ? false
+                                  : {
+                                      r: 5,
+                                      stroke:
+                                        chartColors[cat.categoryId] || "#888",
+                                      strokeWidth: 2,
+                                      fill: "hsl(var(--card))",
+                                    }
+                              }
+                            />
+                          ))}
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      {data.categoryDistribution.map((cat) => {
+                        const isHidden = hiddenCategories.has(cat.categoryId);
+                        return (
+                          <button
+                            key={cat.categoryId}
+                            onClick={() => {
+                              setHiddenCategories((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(cat.categoryId))
+                                  next.delete(cat.categoryId);
+                                else next.add(cat.categoryId);
+                                return next;
+                              });
+                            }}
+                            className={`flex items-center gap-2 rounded-full border px-3 py-1 text-sm transition-all ${
+                              isHidden
+                                ? "border-muted bg-muted/50 text-muted-foreground line-through opacity-50"
+                                : "border-border bg-card hover:bg-muted"
+                            }`}
+                          >
+                            <div
+                              className={`h-2.5 w-2.5 rounded-full transition-opacity ${isHidden ? "opacity-30" : ""}`}
+                              style={{
+                                backgroundColor:
+                                  chartColors[cat.categoryId] || "#888",
+                              }}
+                            />
+                            {getCategoryName(cat.categoryId)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </AnimatedCard>
+            )}
+
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* ── Category Distribution ── */}
+              <AnimatedCard delay={100} className="h-full">
+                <Card className="card-hover card-hero relative overflow-hidden h-full">
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent" />
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Layers className="h-5 w-5 text-blue-500" />
@@ -223,7 +452,7 @@ export default function CategoriesPage() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <div
-                                className={`h-3 w-3 rounded-full ${categoryColors[category.categoryId as keyof typeof categoryColors] || "bg-gray-500"}`}
+                                className={`h-3 w-3 rounded-full ${categoryColors[category.categoryId] || "bg-gray-500"}`}
                               ></div>
                               <span className="font-medium">
                                 {getCategoryName(category.categoryId)}
@@ -252,59 +481,88 @@ export default function CategoriesPage() {
                 </Card>
               </AnimatedCard>
 
-              <AnimatedCard delay={100}>
-                <Card className="card-hover card-hero relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-transparent" />
+              {/* ── Year-over-Year Radar ── */}
+              <AnimatedCard delay={200} className="h-full">
+                <Card className="card-hover card-hero relative overflow-hidden h-full">
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-transparent" />
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <TrendingUp className="h-5 w-5 text-purple-500" />
-                      Category Comparison
+                      Year-over-Year
                     </CardTitle>
                     <CardDescription>
                       How your interests changed from {data.year - 1}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-6">
-                      {data.categoryComparison.map((comparison, index) => (
-                        <div key={comparison.categoryId} className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">
-                              {getCategoryName(comparison.categoryId)}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`flex items-center gap-1 text-sm font-medium ${comparison.change > 0 ? "text-green-500" : "text-red-500"}`}
-                              >
-                                {comparison.change > 0 ? (
-                                  <TrendingUp className="h-3.5 w-3.5" />
-                                ) : (
-                                  <TrendingDown className="h-3.5 w-3.5" />
-                                )}
-                                {comparison.change > 0 ? "+" : ""}
-                                {Math.round(comparison.change)}%
-                              </span>
-                              <span className="text-sm text-muted-foreground">
-                                from{" "}
-                                {Math.round(comparison.previousYear.percentage)}
-                                %
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex h-2 w-full items-center gap-1">
-                            <div
-                              className="h-full rounded-l-full bg-muted"
-                              style={{
-                                width: `${comparison.previousYear.percentage}%`,
-                              }}
-                            ></div>
-                            <div
-                              className={`h-full rounded-r-full ${comparison.change > 0 ? "bg-green-500" : "bg-red-500"}`}
-                              style={{
-                                width: `${Math.abs(comparison.change)}%`,
-                              }}
-                            ></div>
-                          </div>
+                    <div className="h-[280px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={radarData} outerRadius="70%">
+                          <PolarGrid
+                            stroke="hsl(var(--border))"
+                            opacity={0.4}
+                          />
+                          <PolarAngleAxis
+                            dataKey="category"
+                            tick={{
+                              fontSize: 11,
+                              fill: "hsl(var(--muted-foreground))",
+                            }}
+                          />
+                          <PolarRadiusAxis
+                            tick={{ fontSize: 10 }}
+                            stroke="hsl(var(--muted-foreground))"
+                          />
+                          <Radar
+                            name={String(data.year)}
+                            dataKey={String(data.year)}
+                            stroke="#3b82f6"
+                            fill="#3b82f6"
+                            fillOpacity={0.25}
+                            strokeWidth={2}
+                          />
+                          <Radar
+                            name={String(data.year - 1)}
+                            dataKey={String(data.year - 1)}
+                            stroke="#64748b"
+                            fill="#64748b"
+                            fillOpacity={0.1}
+                            strokeWidth={2}
+                            strokeDasharray="4 4"
+                          />
+                          <Legend wrapperStyle={{ fontSize: "12px" }} />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "hsl(var(--card))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: "8px",
+                              fontSize: "12px",
+                            }}
+                            formatter={(value: number) => [`${value}%`]}
+                          />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="mt-2 space-y-1">
+                      {data.categoryComparison.map((comp) => (
+                        <div
+                          key={comp.categoryId}
+                          className="flex items-center justify-between text-sm"
+                        >
+                          <span className="text-muted-foreground">
+                            {getCategoryName(comp.categoryId)}
+                          </span>
+                          <span
+                            className={`flex items-center gap-1 font-medium ${comp.change > 0 ? "text-green-500" : comp.change < 0 ? "text-red-500" : "text-muted-foreground"}`}
+                          >
+                            {comp.change > 0 ? (
+                              <TrendingUp className="h-3 w-3" />
+                            ) : comp.change < 0 ? (
+                              <TrendingDown className="h-3 w-3" />
+                            ) : null}
+                            {comp.change > 0 ? "+" : ""}
+                            {Math.round(comp.change)}%
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -313,12 +571,23 @@ export default function CategoriesPage() {
               </AnimatedCard>
             </div>
 
+            {/* ── Bottom row: Top Videos + Discoveries ── */}
             <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {data.categoryDistribution.slice(0, 2).map((category, i) => (
-                <AnimatedCard key={category.categoryId} delay={200 + i * 100}>
-                  <Card>
+                <AnimatedCard
+                  key={category.categoryId}
+                  delay={300 + i * 100}
+                  className="h-full"
+                >
+                  <Card className="card-hover relative overflow-hidden h-full">
+                    <div
+                      className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${i === 0 ? "from-red-500/5" : "from-blue-500/5"} via-transparent to-transparent`}
+                    />
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Film
+                          className={`h-4 w-4 ${i === 0 ? "text-red-500" : "text-blue-500"}`}
+                        />
                         Top {getCategoryName(category.categoryId)} Videos
                       </CardTitle>
                     </CardHeader>
@@ -327,7 +596,7 @@ export default function CategoriesPage() {
                         {category.topVideos?.map((video) => (
                           <a
                             key={video.videoId}
-                            href={`https://www.youtube.com/watch?v=${video.videoId}`}
+                            href={`https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="block"
@@ -335,7 +604,7 @@ export default function CategoriesPage() {
                             <div className="flex items-start gap-3">
                               <div className="relative h-[90px] w-[160px] shrink-0 overflow-hidden rounded-md bg-muted group">
                                 <Image
-                                  src={`https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`}
+                                  src={`https://img.youtube.com/vi/${encodeURIComponent(video.videoId)}/mqdefault.jpg`}
                                   alt={video.title}
                                   fill
                                   className="object-cover transition-transform duration-200 group-hover:scale-105"
@@ -366,10 +635,12 @@ export default function CategoriesPage() {
                   </Card>
                 </AnimatedCard>
               ))}
-              <AnimatedCard delay={400}>
-                <Card>
+              <AnimatedCard delay={500} className="h-full">
+                <Card className="card-hover relative overflow-hidden h-full">
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent" />
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Sparkles className="h-4 w-4 text-purple-500" />
                       Category Discoveries
                     </CardTitle>
                   </CardHeader>

@@ -229,6 +229,20 @@ export const mockCategoryData = {
     { categoryId: "27", currentYear: { watchTime: 30, percentage: 12 }, previousYear: { watchTime: 24, percentage: 11 }, change: 1 },
     { categoryId: "24", currentYear: { watchTime: 25, percentage: 10 }, previousYear: { watchTime: 17, percentage: 8 },  change: 2 },
   ],
+  monthlyBreakdown: [
+    { month: "Jan",  "20": 5.2, "28": 6.1,  "10": 3.5, "27": 2.0, "24": 1.8 },
+    { month: "Feb",  "20": 4.8, "28": 5.5,  "10": 3.2, "27": 2.3, "24": 1.5 },
+    { month: "Mar",  "20": 6.0, "28": 5.8,  "10": 3.8, "27": 2.5, "24": 2.0 },
+    { month: "Apr",  "20": 5.5, "28": 6.2,  "10": 4.0, "27": 2.8, "24": 1.9 },
+    { month: "May",  "20": 7.2, "28": 5.0,  "10": 3.5, "27": 2.2, "24": 2.5 },
+    { month: "Jun",  "20": 8.5, "28": 4.8,  "10": 3.0, "27": 1.8, "24": 3.2 },
+    { month: "Jul",  "20": 9.8, "28": 4.5,  "10": 2.8, "27": 1.5, "24": 3.8 },
+    { month: "Aug",  "20": 10.2, "28": 5.2, "10": 3.0, "27": 2.0, "24": 3.5 },
+    { month: "Sep",  "20": 6.5, "28": 7.5,  "10": 4.5, "27": 4.2, "24": 2.0 },
+    { month: "Oct",  "20": 6.0, "28": 6.8,  "10": 5.0, "27": 3.5, "24": 1.2 },
+    { month: "Nov",  "20": 5.2, "28": 5.8,  "10": 4.5, "27": 2.8, "24": 0.8 },
+    { month: "Dec",  "20": 4.1, "28": 5.8,  "10": 3.2, "27": 2.4, "24": 0.8 },
+  ],
 }
 
 // ─── Creators page mock (discovery/loyalty/engagement — demo only) ──
