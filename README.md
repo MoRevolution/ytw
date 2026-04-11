@@ -1,6 +1,6 @@
 # YouTube Wrapped 🎥
 
-> *note* realizing that asking people for their google creds is silly...gonna update that and make the UI nicer some day
+> *note*: realizing that asking people for their google creds is silly...gonna update that and make the UI nicer some day
 
 ### One of the 20+ knockoffs, and hopefully the one that nudges Youtube to make a real one
 Our attempt at creating a YouTube dashboard that's cooler than your average analytics page. Think Spotify Wrapped, but for your YouTube addiction.
